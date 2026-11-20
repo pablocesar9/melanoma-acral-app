@@ -51,4 +51,4 @@ Los modelos (`app/src/main/assets/modelos/*.onnx` y `*.tflite`) no están en el 
 
 ## Licencia
 
-MIT (ver `LICENSE`); la licencia cubre el código. Las imágenes de ejemplo de las pruebas mantienen las licencias de sus fuentes de origen. Las citas textuales de `trazabilidad-r2/` pertenecen a sus autores.
+MIT (ver `LICENSE`); la licencia cubre el código. Las cuatro imágenes de ejemplo de las pruebas son del ISIC Archive, vía el conjunto BALD, con licencia CC BY-NC 4.0 (atribución: International Dermoscopy Society); el detalle está en `app/src/test/resources/imagenes-ejemplo/README.md`. Las citas textuales de `trazabilidad-r2/` pertenecen a sus autores.
