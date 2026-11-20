@@ -47,7 +47,8 @@ Los modelos (`app/src/main/assets/modelos/*.onnx` y `*.tflite`) no están en el 
 | `app/src/main/java/.../ui` | Pantallas, componentes y tema (Jetpack Compose y Material 3). |
 | `app/src/test` y `app/src/androidTest` | Pruebas unitarias y pruebas en el teléfono. |
 | `scripts/` | Descarga de los modelos de la Release. |
+| `trazabilidad-r2/` | Anexo documental de trazabilidad de los requisitos (Anexo J de la tesis): 32 requisitos, 416 pares requisito–fuente con su cita textual. |
 
 ## Licencia
 
-MIT (ver `LICENSE`); la licencia cubre el código. Las imágenes de ejemplo de las pruebas mantienen las licencias de sus fuentes de origen.
+MIT (ver `LICENSE`); la licencia cubre el código. Las imágenes de ejemplo de las pruebas mantienen las licencias de sus fuentes de origen. Las citas textuales de `trazabilidad-r2/` pertenecen a sus autores.
