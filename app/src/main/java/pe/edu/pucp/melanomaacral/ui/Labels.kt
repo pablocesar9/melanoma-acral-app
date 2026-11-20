@@ -70,7 +70,7 @@ fun RecommendationReason.description(): String {
         RecommendationReason.OUT_OF_SCOPE ->
             "La imagen está fuera del alcance del modelo, así que no se puede evaluar y no hay recomendación."
         RecommendationReason.NOT_APT_FOR_FOLLOW_UP ->
-            "Las lesiones elevadas, palpables, nodulares o azules no se monitorean: se derivan."
+            "La lesión cumple un criterio de derivación (cambio de aspecto o elevación, síntomas, sangrado, lesión que no cura o que crece rápido): no se monitorea, se deriva."
         RecommendationReason.ABOVE_THRESHOLD ->
             "La probabilidad del modelo alcanza el nivel en que se recomienda derivar."
         RecommendationReason.DIAMETER_OVER_LIMIT ->

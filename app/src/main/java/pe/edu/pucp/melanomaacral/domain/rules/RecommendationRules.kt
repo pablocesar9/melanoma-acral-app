@@ -5,6 +5,7 @@ import pe.edu.pucp.melanomaacral.domain.model.ManagementAction
 import pe.edu.pucp.melanomaacral.domain.model.Prediction
 import pe.edu.pucp.melanomaacral.domain.model.Recommendation
 import pe.edu.pucp.melanomaacral.domain.model.RecommendationReason
+import pe.edu.pucp.melanomaacral.domain.model.ReportedChange
 
 // Reglas de RF-08: combinan la salida del modelo con reglas clínicas documentadas.
 // PROVISIONAL: el orden y los criterios deben validarse con el especialista.
@@ -14,8 +15,8 @@ object RecommendationRules {
     const val DIAMETER_LIMIT_MM = 7f
 
     fun recommend(prediction: Prediction, clinical: ClinicalData): Recommendation {
-        // RF-09: estas lesiones nunca se monitorean [4][17].
-        val followUpAllowed = !clinical.isElevatedOrPalpable && !clinical.isNodularOrBlue
+        // RF-09: si la lesión cumple un criterio de derivación del primer nivel, se deriva y no se monitorea.
+        val followUpAllowed = !meetsReferralCriteria(clinical)
 
         // Se evalúan en orden: la primera condición que se cumple decide.
         val (action, reason) = when {
@@ -33,4 +34,14 @@ object RecommendationRules {
 
         return Recommendation(action, reason, followUpAllowed)
     }
+
+    // RF-09: criterios de derivación del primer nivel: cambio de aspecto (incluida la elevación) o síntomas,
+    // sangrado, lesión que no cura o crecimiento rápido.
+    fun meetsReferralCriteria(c: ClinicalData): Boolean =
+        c.reportedChange == ReportedChange.YES ||
+            c.isElevatedOrPalpable ||
+            c.hasPain || c.hasItching ||
+            c.hasBleeding ||
+            c.isNotHealing ||
+            c.isGrowingRapidly
 }

@@ -12,7 +12,7 @@ enum class ManagementAction {
 // Por qué se recomendó esa acción. La pantalla traduce cada motivo a un texto.
 enum class RecommendationReason {
     OUT_OF_SCOPE,            // RF-05: la imagen está fuera del alcance del modelo; no se recomienda nada
-    NOT_APT_FOR_FOLLOW_UP,   // RF-09: lesión elevada, palpable, nodular o azul
+    NOT_APT_FOR_FOLLOW_UP,   // RF-09: cumple un criterio de derivación del primer nivel
     ABOVE_THRESHOLD,         // RF-08: probabilidad mayor o igual al umbral
     DIAMETER_OVER_LIMIT,     // RF-07: diámetro mayor a 7 mm (algoritmo de 3 pasos)
     SMALL_BELOW_THRESHOLD    // RF-07: lesión pequeña con probabilidad bajo el umbral

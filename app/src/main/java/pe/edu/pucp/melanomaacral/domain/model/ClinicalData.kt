@@ -21,7 +21,9 @@ data class ClinicalData(
     val location: AcralLocation,
     val maxDiameterMm: Float,
     val isElevatedOrPalpable: Boolean,
-    val isNodularOrBlue: Boolean,
+    // RF-09: lesión que no cura o que crece rápido (criterios de derivación del primer nivel).
+    val isNotHealing: Boolean = false,
+    val isGrowingRapidly: Boolean = false,
     val hadPreviousProcedure: Boolean,
     val reportedChange: ReportedChange,
     val evolutionTime: EvolutionTime,

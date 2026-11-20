@@ -253,7 +253,7 @@ private fun EvaluationDialog(evaluation: Evaluation, onDismiss: () -> Unit, onEd
                     listOfNotNull(
                         c.ageYears?.let { "Edad: $it años" }, c.sex?.let { "Sexo: ${it.label()}" },
                         "Localización: ${c.location.label()}", "Diámetro: ${c.maxDiameterMm} mm",
-                        "Elevada o palpable: ${c.isElevatedOrPalpable.yesNo()}", "Nodular o azul: ${c.isNodularOrBlue.yesNo()}",
+                        "Elevada o palpable: ${c.isElevatedOrPalpable.yesNo()}", "No cura: ${c.isNotHealing.yesNo()}", "Crece rápido: ${c.isGrowingRapidly.yesNo()}",
                         "Cambios: ${c.reportedChange.label()}", "Evolución: ${c.evolutionTime.label()}",
                         "Síntomas: ${if (sintomas.isEmpty()) "ninguno" else sintomas.joinToString(", ")}",
                         "Antecedente de cáncer de piel: ${c.hasSkinCancerHistory.yesNo()}",

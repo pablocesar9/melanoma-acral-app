@@ -34,7 +34,6 @@ object SampleRecords {
             location = AcralLocation.SOLE,
             maxDiameterMm = 4.5f,
             isElevatedOrPalpable = false,
-            isNodularOrBlue = false,
             hadPreviousProcedure = false,
             reportedChange = ReportedChange.NO,
             evolutionTime = EvolutionTime.MORE_THAN_12_MONTHS

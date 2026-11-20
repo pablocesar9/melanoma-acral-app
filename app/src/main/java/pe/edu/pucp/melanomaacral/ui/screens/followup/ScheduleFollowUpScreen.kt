@@ -162,7 +162,7 @@ private val longDateFormatter = DateTimeFormatter.ofPattern("d 'de' MMMM 'de' yy
 
 private fun longDate(date: LocalDate): String = date.format(longDateFormatter)
 
-// RF-09: lesiones elevadas, palpables, nodulares o azules no se monitorean.
+// RF-09: las lesiones que cumplen un criterio de derivación del primer nivel no se monitorean.
 @Composable
 private fun BlockedContent(onBack: () -> Unit, modifier: Modifier = Modifier) {
     Column(
@@ -173,7 +173,7 @@ private fun BlockedContent(onBack: () -> Unit, modifier: Modifier = Modifier) {
     ) {
         NoticeCard(
             title = "No se puede programar control",
-            text = "La última evaluación indica una lesión elevada, palpable, nodular o azul. Estas lesiones se derivan, no se monitorean.",
+            text = "La última evaluación cumple un criterio de derivación (cambio de aspecto o elevación, síntomas, sangrado, lesión que no cura o que crece rápido). Estas lesiones se derivan, no se monitorean.",
             kind = NoticeKind.Error
         )
         OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) {

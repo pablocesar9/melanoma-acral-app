@@ -1,23 +1,32 @@
 package pe.edu.pucp.melanomaacral.data.local
 
 import android.content.Context
+import androidx.room.AutoMigration
 import androidx.room.Database
+import androidx.room.DeleteColumn
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.AutoMigrationSpec
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-// Base de datos local, versión 2 (esquemas exportados en app/schemas/). v1 -> v2 (2026-11-17): columnas notes,
+// Base de datos local, versión 3 (esquemas exportados en app/schemas/). v1 -> v2 (2026-11-17): columnas notes,
 // score, scoreThreshold y editedAtMillis en evaluations, todas opcionales; las filas existentes quedan con null.
+// v2 -> v3 (2026-11-20, RF-09): se quita isNodularOrBlue y se agregan isNotHealing e isGrowingRapidly (0 en las filas
+// existentes); migración automática de Room.
 // Cuando cambie el esquema: subir la versión y agregar un Migration (no usar
 // fallbackToDestructiveMigration: borraría el historial de los pacientes).
 @Database(
     entities = [PatientEntity::class, LesionEntity::class, EvaluationEntity::class],
-    version = 2,
-    exportSchema = true
+    version = 3,
+    exportSchema = true,
+    autoMigrations = [AutoMigration(from = 2, to = 3, spec = AppDatabase.Migracion2a3::class)]
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun recordsDao(): RecordsDao
+
+    @DeleteColumn(tableName = "evaluations", columnName = "isNodularOrBlue")
+    class Migracion2a3 : AutoMigrationSpec
 
     companion object {
         const val NAME = "melanoma-acral.db"

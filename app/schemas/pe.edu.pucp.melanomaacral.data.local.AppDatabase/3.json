@@ -1,0 +1,382 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 3,
+    "identityHash": "bef0193d2a71914d6a99fd00b98b886e",
+    "entities": [
+      {
+        "tableName": "patients",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `createdOnEpochDay` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdOnEpochDay",
+            "columnName": "createdOnEpochDay",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "lesions",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `patientId` TEXT NOT NULL, `nextFollowUpEpochDay` INTEGER, PRIMARY KEY(`id`), FOREIGN KEY(`patientId`) REFERENCES `patients`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "patientId",
+            "columnName": "patientId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nextFollowUpEpochDay",
+            "columnName": "nextFollowUpEpochDay",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_lesions_patientId",
+            "unique": false,
+            "columnNames": [
+              "patientId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_lesions_patientId` ON `${TABLE_NAME}` (`patientId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "patients",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "patientId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "evaluations",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `lesionId` TEXT NOT NULL, `dateEpochDay` INTEGER NOT NULL, `derm_uri` TEXT NOT NULL, `derm_source` TEXT NOT NULL, `derm_width` INTEGER NOT NULL, `derm_height` INTEGER NOT NULL, `derm_size` INTEGER NOT NULL, `derm_captured_at` INTEGER NOT NULL, `derm_sharpness` REAL, `derm_luma` REAL, `ctx_uri` TEXT, `ctx_source` TEXT, `ctx_width` INTEGER, `ctx_height` INTEGER, `ctx_size` INTEGER, `ctx_captured_at` INTEGER, `ctx_sharpness` REAL, `ctx_luma` REAL, `location` TEXT NOT NULL, `maxDiameterMm` REAL NOT NULL, `isElevatedOrPalpable` INTEGER NOT NULL, `isNotHealing` INTEGER NOT NULL DEFAULT 0, `isGrowingRapidly` INTEGER NOT NULL DEFAULT 0, `hadPreviousProcedure` INTEGER NOT NULL, `reportedChange` TEXT NOT NULL, `evolutionTime` TEXT NOT NULL, `ageYears` INTEGER, `sex` TEXT, `hasSkinCancerHistory` INTEGER NOT NULL, `hasBleeding` INTEGER NOT NULL, `hasPain` INTEGER NOT NULL, `hasItching` INTEGER NOT NULL, `probMelanoma` REAL NOT NULL, `isOutOfScope` INTEGER NOT NULL, `modelVersion` TEXT NOT NULL, `threshold` REAL NOT NULL, `isSimulated` INTEGER NOT NULL, `action` TEXT NOT NULL, `reason` TEXT NOT NULL, `followUpAllowed` INTEGER NOT NULL, `notes` TEXT, `score` REAL, `scoreThreshold` REAL, `editedAtMillis` INTEGER, PRIMARY KEY(`id`), FOREIGN KEY(`lesionId`) REFERENCES `lesions`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lesionId",
+            "columnName": "lesionId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dateEpochDay",
+            "columnName": "dateEpochDay",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dermUri",
+            "columnName": "derm_uri",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dermSource",
+            "columnName": "derm_source",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dermWidth",
+            "columnName": "derm_width",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dermHeight",
+            "columnName": "derm_height",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dermSize",
+            "columnName": "derm_size",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dermCapturedAt",
+            "columnName": "derm_captured_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dermSharpness",
+            "columnName": "derm_sharpness",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "dermLuma",
+            "columnName": "derm_luma",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "ctxUri",
+            "columnName": "ctx_uri",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "ctxSource",
+            "columnName": "ctx_source",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "ctxWidth",
+            "columnName": "ctx_width",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "ctxHeight",
+            "columnName": "ctx_height",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "ctxSize",
+            "columnName": "ctx_size",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "ctxCapturedAt",
+            "columnName": "ctx_captured_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "ctxSharpness",
+            "columnName": "ctx_sharpness",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "ctxLuma",
+            "columnName": "ctx_luma",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "location",
+            "columnName": "location",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "maxDiameterMm",
+            "columnName": "maxDiameterMm",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isElevatedOrPalpable",
+            "columnName": "isElevatedOrPalpable",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isNotHealing",
+            "columnName": "isNotHealing",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "isGrowingRapidly",
+            "columnName": "isGrowingRapidly",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "hadPreviousProcedure",
+            "columnName": "hadPreviousProcedure",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "reportedChange",
+            "columnName": "reportedChange",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "evolutionTime",
+            "columnName": "evolutionTime",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ageYears",
+            "columnName": "ageYears",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "sex",
+            "columnName": "sex",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "hasSkinCancerHistory",
+            "columnName": "hasSkinCancerHistory",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hasBleeding",
+            "columnName": "hasBleeding",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hasPain",
+            "columnName": "hasPain",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hasItching",
+            "columnName": "hasItching",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "probMelanoma",
+            "columnName": "probMelanoma",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isOutOfScope",
+            "columnName": "isOutOfScope",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "modelVersion",
+            "columnName": "modelVersion",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "threshold",
+            "columnName": "threshold",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isSimulated",
+            "columnName": "isSimulated",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "action",
+            "columnName": "action",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "reason",
+            "columnName": "reason",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "followUpAllowed",
+            "columnName": "followUpAllowed",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "notes",
+            "columnName": "notes",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "score",
+            "columnName": "score",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "scoreThreshold",
+            "columnName": "scoreThreshold",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "editedAtMillis",
+            "columnName": "editedAtMillis",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_evaluations_lesionId",
+            "unique": false,
+            "columnNames": [
+              "lesionId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_evaluations_lesionId` ON `${TABLE_NAME}` (`lesionId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "lesions",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "lesionId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'bef0193d2a71914d6a99fd00b98b886e')"
+    ]
+  }
+}

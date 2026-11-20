@@ -23,7 +23,6 @@ class RecommendationRulesTest {
         location = AcralLocation.SOLE,
         maxDiameterMm = 5f,
         isElevatedOrPalpable = false,
-        isNodularOrBlue = false,
         hadPreviousProcedure = false,
         reportedChange = ReportedChange.NO,
         evolutionTime = EvolutionTime.MORE_THAN_12_MONTHS
@@ -71,11 +70,31 @@ class RecommendationRulesTest {
         assertFalse(result.followUpAllowed)
     }
 
+    // RF-09: cada criterio de derivación del primer nivel, por sí solo, deriva y bloquea el control.
     @Test
-    fun lesionNodularOAzul_bloqueaControl() {
-        val result = RecommendationRules.recommend(lowRisk, smallFlatLesion.copy(isNodularOrBlue = true))
+    fun cadaCriterioDeDerivacion_derivaYBloqueaControl() {
+        val casos = mapOf(
+            "cambio de aspecto" to smallFlatLesion.copy(reportedChange = ReportedChange.YES),
+            "elevación" to smallFlatLesion.copy(isElevatedOrPalpable = true),
+            "dolor" to smallFlatLesion.copy(hasPain = true),
+            "prurito" to smallFlatLesion.copy(hasItching = true),
+            "sangrado" to smallFlatLesion.copy(hasBleeding = true),
+            "no cura" to smallFlatLesion.copy(isNotHealing = true),
+            "crece rápido" to smallFlatLesion.copy(isGrowingRapidly = true)
+        )
+        for ((criterio, lesion) in casos) {
+            val result = RecommendationRules.recommend(lowRisk, lesion)
+            assertEquals(criterio, ManagementAction.REFER, result.action)
+            assertEquals(criterio, RecommendationReason.NOT_APT_FOR_FOLLOW_UP, result.reason)
+            assertFalse(criterio, result.followUpAllowed)
+        }
+    }
 
-        assertFalse(result.followUpAllowed)
+    @Test
+    fun cambioDesconocido_noEsCriterioDeDerivacion() {
+        val result = RecommendationRules.recommend(lowRisk, smallFlatLesion.copy(reportedChange = ReportedChange.UNKNOWN))
+
+        assertTrue(result.followUpAllowed)
     }
 
     @Test

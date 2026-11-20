@@ -45,4 +45,32 @@ class MigracionBaseDeDatosTest {
             for (i in 2..5) assertNull(c.getString(i))
         }
     }
+
+    // v2 -> v3 (RF-09): se quita isNodularOrBlue y las columnas nuevas quedan en 0 en las filas existentes.
+    @Test
+    fun v2_a_v3_conservaLasEvaluaciones() {
+        val nombre3 = "prueba-migracion-3.db"
+        helper.createDatabase(nombre3, 2).apply {
+            execSQL("INSERT INTO patients (id, createdOnEpochDay) VALUES ('HC-1', 20000)")
+            execSQL("INSERT INTO lesions (id, patientId, nextFollowUpEpochDay) VALUES ('LES-001', 'HC-1', NULL)")
+            execSQL(
+                """INSERT INTO evaluations (id, lesionId, dateEpochDay, derm_uri, derm_source, derm_width, derm_height, derm_size,
+                   derm_captured_at, location, maxDiameterMm, isElevatedOrPalpable, isNodularOrBlue, hadPreviousProcedure,
+                   reportedChange, evolutionTime, hasSkinCancerHistory, hasBleeding, hasPain, hasItching,
+                   probMelanoma, isOutOfScope, modelVersion, threshold, isSimulated, action, reason, followUpAllowed)
+                   VALUES ('EV-001', 'LES-001', 20000, '/x/d.jpg', 'CAMERA', 100, 100, 1000, 0, 'SOLE', 4.0, 0, 0, 0,
+                   'NO', 'UNKNOWN', 0, 0, 0, 0, 0.1, 0, 'simulado-0', 0.3, 1, 'FOLLOW_UP', 'SMALL_BELOW_THRESHOLD', 1)"""
+            )
+            close()
+        }
+        val db = helper.runMigrationsAndValidate(nombre3, 3, true)
+        db.query("SELECT id, location, isNotHealing, isGrowingRapidly FROM evaluations").use { c ->
+            assertEquals(1, c.count)
+            c.moveToFirst()
+            assertEquals("EV-001", c.getString(0))
+            assertEquals("SOLE", c.getString(1))
+            assertEquals(0, c.getInt(2))
+            assertEquals(0, c.getInt(3))
+        }
+    }
 }

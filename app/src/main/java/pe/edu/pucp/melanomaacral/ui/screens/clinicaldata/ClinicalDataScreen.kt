@@ -234,13 +234,18 @@ fun ClinicalDataContent(
                     onCheckedChange = { onChange(uiState.copy(isElevatedOrPalpable = it)) }
                 )
                 SwitchRow(
-                    label = "Nodular o de color azul",
-                    checked = uiState.isNodularOrBlue,
-                    onCheckedChange = { onChange(uiState.copy(isNodularOrBlue = it)) }
+                    label = "No cura",
+                    checked = uiState.isNotHealing,
+                    onCheckedChange = { onChange(uiState.copy(isNotHealing = it)) }
+                )
+                SwitchRow(
+                    label = "Crece rápido",
+                    checked = uiState.isGrowingRapidly,
+                    onCheckedChange = { onChange(uiState.copy(isGrowingRapidly = it)) }
                 )
                 NoticeCard(
-                    title = "Si alguna se cumple, se deriva",
-                    text = "La lesión no se monitorea: la recomendación será derivar.",
+                    title = "Criterios de derivación",
+                    text = "Si se cumple alguno de estos signos, o si la lesión cambió, sangra, duele o pica, la lesión no se monitorea: la recomendación será derivar.",
                     kind = NoticeKind.Info
                 )
             }

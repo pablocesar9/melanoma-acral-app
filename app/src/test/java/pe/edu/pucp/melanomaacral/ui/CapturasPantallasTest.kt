@@ -105,8 +105,8 @@ class CapturasPantallasTest {
 
     // ---- datos de ejemplo ----
     private val sole = ClinicalData(
-        location = AcralLocation.SOLE, maxDiameterMm = 9f, isElevatedOrPalpable = false, isNodularOrBlue = false,
-        hadPreviousProcedure = false, reportedChange = ReportedChange.YES, evolutionTime = EvolutionTime.FROM_3_TO_12_MONTHS,
+        location = AcralLocation.SOLE, maxDiameterMm = 9f, isElevatedOrPalpable = false,
+        hadPreviousProcedure = false, reportedChange = ReportedChange.NO, evolutionTime = EvolutionTime.FROM_3_TO_12_MONTHS,
         ageYears = 58, sex = Sex.MALE
     )
     private val prediction = Prediction(0.18f, false, "simulado-0", 0.30f, true)
