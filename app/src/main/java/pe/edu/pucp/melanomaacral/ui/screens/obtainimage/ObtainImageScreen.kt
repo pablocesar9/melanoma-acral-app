@@ -67,8 +67,8 @@ import pe.edu.pucp.melanomaacral.ui.theme.Space
 import java.io.File
 
 // P-05 Obtener imágenes y P-06 Revisión de calidad — RF-01, RF-02, RF-03, RF-13, RF-21, RNF-04.
-// Dos pasos en orden: 1) foto clínica de contexto, 2) imagen dermoscópica. Cada foto se revisa
-// apenas se obtiene. Se puede ir y volver entre los dos pasos sin perder las fotos, y lo hecho
+// Tres pasos en orden: 1) foto clínica de contexto (zona), 2) foto clínica de primer plano, 3) imagen
+// dermoscópica. Cada foto se revisa apenas se obtiene. Se puede ir y volver entre pasos sin perder las fotos, y lo hecho
 // queda guardado como evaluación sin terminar si se sale del flujo.
 @Composable
 fun ObtainImageScreen(
@@ -82,9 +82,9 @@ fun ObtainImageScreen(
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) viewModel.onGalleryUri(uri.toString())
     }
-    // «Atrás» en el paso 2 vuelve al paso 1, no fuera del flujo.
-    BackHandler(enabled = uiState.step == CaptureStep.DERMOSCOPIC && uiState.mode != CaptureMode.CAMERA) {
-        viewModel.goToContext()
+    // «Atrás» en los pasos 2 y 3 vuelve al paso anterior, no fuera del flujo.
+    BackHandler(enabled = uiState.step != CaptureStep.CONTEXT && uiState.mode != CaptureMode.CAMERA) {
+        viewModel.goBack()
     }
     ObtainImageContent(
         uiState = uiState,
@@ -96,6 +96,7 @@ fun ObtainImageScreen(
             picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
         },
         onGoToContext = viewModel::goToContext,
+        onGoToCloseUp = { viewModel.goToCloseUp() },
         onGoToDermoscopic = { viewModel.goToDermoscopic() },
         onFinish = {
             viewModel.capturedImages()?.let {
@@ -104,7 +105,7 @@ fun ObtainImageScreen(
             }
         },
         onBack = {
-            if (uiState.step == CaptureStep.DERMOSCOPIC) viewModel.goToContext() else onBack()
+            if (uiState.step != CaptureStep.CONTEXT) viewModel.goBack() else onBack()
         },
         onExit = onExit
     )
@@ -119,16 +120,19 @@ fun ObtainImageContent(
     onCameraFile: (File) -> Unit,
     onPickFromGallery: () -> Unit,
     onGoToContext: () -> Unit,
+    onGoToCloseUp: () -> Unit,
     onGoToDermoscopic: () -> Unit,
     onFinish: () -> Unit,
     onBack: () -> Unit,
     onExit: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val isContext = uiState.step == CaptureStep.CONTEXT
+    val step = uiState.step
+    // Las dos fotos clínicas (contexto y primer plano) se toman sin dermatoscopio y se revisan igual.
+    val isClinical = step != CaptureStep.DERMOSCOPIC
     val inCamera = uiState.mode == CaptureMode.CAMERA && !uiState.isProcessing
     val slot = uiState.current
-    val hasAnyImage = uiState.context.hasImage || uiState.dermoscopic.hasImage
+    val hasAnyImage = uiState.context.hasImage || uiState.closeUp.hasImage || uiState.dermoscopic.hasImage
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
@@ -141,12 +145,24 @@ fun ObtainImageContent(
         },
         bottomBar = {
             if (uiState.isProcessing || uiState.isRestoring || inCamera) return@Scaffold
-            val nextLabel = if (isContext) "Siguiente: imagen dermoscópica" else "Continuar a datos clínicos"
-            val onNext = if (isContext) onGoToDermoscopic else onFinish
+            val nextLabel = when (step) {
+                CaptureStep.CONTEXT -> "Siguiente: primer plano"
+                CaptureStep.CLOSE_UP -> "Siguiente: imagen dermoscópica"
+                CaptureStep.DERMOSCOPIC -> "Continuar a datos clínicos"
+            }
+            val onNext: () -> Unit = when (step) {
+                CaptureStep.CONTEXT -> { { onGoToCloseUp() } }
+                CaptureStep.CLOSE_UP -> { { onGoToDermoscopic() } }
+                CaptureStep.DERMOSCOPIC -> onFinish
+            }
             when {
                 // Sin foto en este paso: obtenerla.
                 !slot.hasImage -> BottomActionBar(
-                    primaryLabel = if (isContext) "Tomar foto clínica" else "Capturar imagen dermoscópica",
+                    primaryLabel = when (step) {
+                        CaptureStep.CONTEXT -> "Tomar foto de la zona"
+                        CaptureStep.CLOSE_UP -> "Tomar primer plano"
+                        CaptureStep.DERMOSCOPIC -> "Capturar imagen dermoscópica"
+                    },
                     onPrimary = onOpenCamera,
                     primaryIcon = Icons.Filled.CameraAlt,
                     secondaryLabel = "Elegir de la galería",
@@ -192,7 +208,7 @@ fun ObtainImageContent(
                 .fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(Space.l)
         ) {
-            StepIndicator(if (isContext) EvaluationStep.ClinicalPhoto else EvaluationStep.Dermoscopic)
+            StepIndicator(if (isClinical) EvaluationStep.ClinicalPhoto else EvaluationStep.Dermoscopic)
 
             if (inCamera) {
                 CameraCapture(
@@ -204,23 +220,23 @@ fun ObtainImageContent(
                 return@Column
             }
 
-            CaptureStepSwitcher(uiState, onGoToContext, onGoToDermoscopic)
+            CaptureStepSwitcher(uiState, onGoToContext, onGoToCloseUp, onGoToDermoscopic)
 
             if (!slot.hasImage) {
-                CaptureInstructions(isContext)
+                CaptureInstructions(step)
             } else {
                 val image = slot.image!!
-                val title = if (isContext) "Foto clínica de contexto" else "Imagen dermoscópica"
+                val title = step.title()
                 when {
                     slot.isChecking -> QualityCheckingCard()
-                    slot.report != null -> QualityVerdictCard(ok = slot.qualityOk, isContext = isContext)
+                    slot.report != null -> QualityVerdictCard(ok = slot.qualityOk, isContext = isClinical)
                     else -> NoticeCard(
                         "No se pudo revisar la imagen",
                         slot.checkError ?: "Error desconocido. Puedes repetir la foto.",
                         NoticeKind.Error
                     )
                 }
-                PhotoQualityCard(title = title, image = image, report = slot.report, showFraming = !isContext)
+                PhotoQualityCard(title = title, image = image, report = slot.report, showFraming = !isClinical)
                 TextButton(onClick = onPickFromGallery) { Text("Elegir otra de la galería") }
                 slot.report?.let { QualityMethodNotice(it) }
             }
@@ -246,17 +262,25 @@ fun ObtainImageContent(
     }
 }
 
-// Selector de paso: permite ir y volver entre las dos fotos. El paso 2 se habilita con la foto
-// clínica ya obtenida (RF-02). Cada botón muestra si su foto ya está y si su calidad es adecuada.
+private fun CaptureStep.title() = when (this) {
+    CaptureStep.CONTEXT -> "Foto clínica de contexto"
+    CaptureStep.CLOSE_UP -> "Foto clínica de primer plano"
+    CaptureStep.DERMOSCOPIC -> "Imagen dermoscópica"
+}
+
+// Selector de paso: permite ir y volver entre las tres fotos. Cada paso se habilita con las fotos
+// clínicas anteriores ya obtenidas (RF-02). Cada botón muestra si su foto ya está y si su calidad es adecuada.
 @Composable
 private fun CaptureStepSwitcher(
     uiState: ObtainImageUiState,
     onGoToContext: () -> Unit,
+    onGoToCloseUp: () -> Unit,
     onGoToDermoscopic: () -> Unit
 ) {
     SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
         StepSegment(
-            label = "1. Foto clínica",
+            label = "Zona",
+            spoken = "Paso 1, foto de la zona",
             slot = uiState.context,
             selected = uiState.step == CaptureStep.CONTEXT,
             enabled = true,
@@ -264,11 +288,21 @@ private fun CaptureStepSwitcher(
             onClick = onGoToContext
         )
         StepSegment(
-            label = "2. Dermoscópica",
-            slot = uiState.dermoscopic,
-            selected = uiState.step == CaptureStep.DERMOSCOPIC,
+            label = "Cerca",
+            spoken = "Paso 2, primer plano",
+            slot = uiState.closeUp,
+            selected = uiState.step == CaptureStep.CLOSE_UP,
             enabled = uiState.context.hasImage,
             index = 1,
+            onClick = onGoToCloseUp
+        )
+        StepSegment(
+            label = "Dermo",
+            spoken = "Paso 3, imagen dermoscópica",
+            slot = uiState.dermoscopic,
+            selected = uiState.step == CaptureStep.DERMOSCOPIC,
+            enabled = uiState.context.hasImage && uiState.closeUp.hasImage,
+            index = 2,
             onClick = onGoToDermoscopic
         )
     }
@@ -277,6 +311,7 @@ private fun CaptureStepSwitcher(
 @Composable
 private fun androidx.compose.material3.SingleChoiceSegmentedButtonRowScope.StepSegment(
     label: String,
+    spoken: String,
     slot: CaptureSlot,
     selected: Boolean,
     enabled: Boolean,
@@ -293,7 +328,7 @@ private fun androidx.compose.material3.SingleChoiceSegmentedButtonRowScope.StepS
         selected = selected,
         onClick = onClick,
         enabled = enabled,
-        shape = SegmentedButtonDefaults.itemShape(index = index, count = 2),
+        shape = SegmentedButtonDefaults.itemShape(index = index, count = 3),
         icon = {
             when {
                 !slot.hasImage || slot.isChecking -> SegmentedButtonDefaults.Icon(active = selected)
@@ -301,7 +336,7 @@ private fun androidx.compose.material3.SingleChoiceSegmentedButtonRowScope.StepS
                 else -> Icon(Icons.Filled.Warning, contentDescription = null, modifier = Modifier.size(18.dp))
             }
         },
-        modifier = Modifier.semantics { contentDescription = "$label, $status" }
+        modifier = Modifier.semantics { contentDescription = "$spoken, $status" }
     ) {
         Text(label, maxLines = 1, textAlign = TextAlign.Center)
     }
@@ -309,7 +344,7 @@ private fun androidx.compose.material3.SingleChoiceSegmentedButtonRowScope.StepS
 
 // Indicaciones antes de tomar la foto del paso.
 @Composable
-private fun CaptureInstructions(isContext: Boolean) {
+private fun CaptureInstructions(step: CaptureStep) {
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
         shape = MaterialTheme.shapes.large,
@@ -320,22 +355,26 @@ private fun CaptureInstructions(isContext: Boolean) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(Space.m)
         ) {
-            FramingGuide(circle = !isContext)
-            Text(
-                if (isContext) "Foto clínica de contexto" else "Imagen dermoscópica",
-                style = MaterialTheme.typography.titleLarge
-            )
+            FramingGuide(circle = step == CaptureStep.DERMOSCOPIC)
+            Text(step.title(), style = MaterialTheme.typography.titleLarge)
             Column(verticalArrangement = Arrangement.spacedBy(Space.s)) {
-                val tips = if (isContext) listOf(
-                    "Toma una foto normal, sin dermatoscopio.",
-                    "Muestra la zona (el pie o la mano) y señala la lesión.",
-                    "Si puedes, añade luego un primer plano.",
-                    "Busca buena luz. Sin esta foto no se puede continuar."
-                ) else listOf(
+                val tips = when (step) {
+                    CaptureStep.CONTEXT -> listOf(
+                        "Toma una foto normal, sin dermatoscopio.",
+                        "Muestra la zona (el pie o la mano) y señala la lesión.",
+                        "Busca buena luz. Sin esta foto no se puede continuar."
+                    )
+                    CaptureStep.CLOSE_UP -> listOf(
+                        "Toma una foto normal, sin dermatoscopio, cerca de la lesión.",
+                        "Que la lesión se vea entera, enfocada y ocupe buena parte de la foto.",
+                        "Sin esta foto no se puede continuar."
+                    )
+                    CaptureStep.DERMOSCOPIC -> listOf(
                     "Acopla el dermatoscopio al teléfono, con luz polarizada y acople estable.",
                     "Apóyalo sobre la piel y centra la lesión en el círculo.",
                     "Espera a que enfoque antes de capturar."
-                )
+                    )
+                }
                 tips.forEach { Tip(it) }
             }
         }
@@ -388,7 +427,7 @@ fun ObtainImagePreview() {
         ObtainImageContent(
             uiState = ObtainImageUiState(),
             cameraFile = { File("x") }, onOpenCamera = {}, onCloseCamera = {}, onCameraFile = {},
-            onPickFromGallery = {}, onGoToContext = {}, onGoToDermoscopic = {}, onFinish = {},
+            onPickFromGallery = {}, onGoToContext = {}, onGoToCloseUp = {}, onGoToDermoscopic = {}, onFinish = {},
             onBack = {}, onExit = {}
         )
     }
@@ -401,10 +440,11 @@ fun ObtainImageDermoscopicPreview() {
         ObtainImageContent(
             uiState = ObtainImageUiState(
                 step = CaptureStep.DERMOSCOPIC,
-                context = CaptureSlot(image = LesionImage("ejemplo"))
+                context = CaptureSlot(image = LesionImage("ejemplo")),
+                closeUp = CaptureSlot(image = LesionImage("ejemplo"))
             ),
             cameraFile = { File("x") }, onOpenCamera = {}, onCloseCamera = {}, onCameraFile = {},
-            onPickFromGallery = {}, onGoToContext = {}, onGoToDermoscopic = {}, onFinish = {},
+            onPickFromGallery = {}, onGoToContext = {}, onGoToCloseUp = {}, onGoToDermoscopic = {}, onFinish = {},
             onBack = {}, onExit = {}
         )
     }

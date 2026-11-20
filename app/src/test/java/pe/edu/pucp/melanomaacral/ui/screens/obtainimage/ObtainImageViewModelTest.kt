@@ -28,7 +28,7 @@ import pe.edu.pucp.melanomaacral.domain.repository.ImageQualityRepository
 import pe.edu.pucp.melanomaacral.domain.repository.ImageStorage
 import java.io.File
 
-// RF-02: sin la foto clínica de contexto no se llega a la dermoscópica.
+// RF-02: sin las dos fotos clínicas (contexto y primer plano) no se llega a la dermoscópica.
 // RF-03: cada foto se revisa apenas se obtiene. Se puede ir y volver entre pasos sin perder fotos,
 // y lo hecho queda guardado como evaluación sin terminar.
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -92,13 +92,33 @@ class ObtainImageViewModelTest {
         assertEquals(ImageKind.CONTEXT, quality.checked.single().second)
     }
 
-    @Test fun sinFotoClinica_noSePasaALaDermoscopica() {
+    @Test fun sinFotoClinica_noSePasaAlPrimerPlanoNiALaDermoscopica() {
+        assertFalse(vm.goToCloseUp())
         assertFalse(vm.goToDermoscopic())
         assertEquals(CaptureStep.CONTEXT, vm.uiState.value.step)
     }
 
-    @Test fun dermoscopica_seRevisaConEncuadreYCompletaLasDosFotos() {
+    @Test fun sinPrimerPlano_noSePasaALaDermoscopica() {
         vm.onGalleryUri("content://a")
+        assertTrue(vm.goToCloseUp())
+        assertFalse(vm.goToDermoscopic())
+        assertEquals(CaptureStep.CLOSE_UP, vm.uiState.value.step)
+        assertNull(vm.capturedImages())
+    }
+
+    @Test fun primerPlano_seRevisaComoFotoClinica() {
+        vm.onGalleryUri("content://a")
+        vm.goToCloseUp()
+        vm.onGalleryUri("content://b")
+
+        assertEquals(ImageKind.CONTEXT, quality.checked.last().second)
+        assertNotNull(vm.uiState.value.closeUp.report)
+    }
+
+    @Test fun dermoscopica_seRevisaConEncuadreYCompletaLasTresFotos() {
+        vm.onGalleryUri("content://a")
+        assertTrue(vm.goToCloseUp())
+        vm.onGalleryUri("content://b")
         assertTrue(vm.goToDermoscopic())
         vm.onCameraFile(File("x.jpg"))
 
@@ -106,28 +126,37 @@ class ObtainImageViewModelTest {
         val images = vm.capturedImages()
         assertNotNull(images)
         assertNotNull(images!!.context)
+        assertNotNull(images.closeUp)
         assertEquals(ImageSource.CAMERA, images.dermoscopic.source)
         assertEquals(42f, images.dermoscopic.sharpness)   // RNF-07: la medida viaja con la imagen
     }
 
-    @Test fun volverYAvanzar_conservaLasDosFotos() {
+    @Test fun volverYAvanzar_conservaLasTresFotos() {
         vm.onGalleryUri("content://a")
+        vm.goToCloseUp()
+        vm.onGalleryUri("content://c")
         vm.goToDermoscopic()
         vm.onGalleryUri("content://b")
         val context = vm.uiState.value.context.image
+        val closeUp = vm.uiState.value.closeUp.image
         val dermoscopic = vm.uiState.value.dermoscopic.image
 
-        vm.goToContext()
+        vm.goBack()
+        assertEquals(CaptureStep.CLOSE_UP, vm.uiState.value.step)
+        vm.goBack()
         assertEquals(CaptureStep.CONTEXT, vm.uiState.value.step)
         vm.goToDermoscopic()
 
         assertEquals(context, vm.uiState.value.context.image)
+        assertEquals(closeUp, vm.uiState.value.closeUp.image)
         assertEquals(dermoscopic, vm.uiState.value.dermoscopic.image)
         assertTrue(storage.deleted.isEmpty())
     }
 
     @Test fun repetirLaFotoClinica_soloReemplazaEsaYBorraLaAnterior() {
         vm.onGalleryUri("content://a")
+        vm.goToCloseUp()
+        vm.onGalleryUri("content://p")
         vm.goToDermoscopic()
         vm.onGalleryUri("content://b")
         val oldContext = vm.uiState.value.context.image!!
@@ -143,11 +172,14 @@ class ObtainImageViewModelTest {
 
     @Test fun loHecho_quedaGuardadoYSeRetomaEnOtraVisita() = runBlocking {
         vm.onGalleryUri("content://a")
+        vm.goToCloseUp()
+        vm.onGalleryUri("content://p")
         vm.goToDermoscopic()
         val draft = drafts.get("LES-001")
         assertNotNull(draft)
         assertEquals(DraftStage.DERMOSCOPIC, draft!!.stage)
         assertNotNull(draft.contextReport)
+        assertNotNull(draft.closeUpReport)
 
         collector.cancel()
         val reopened = newViewModel()

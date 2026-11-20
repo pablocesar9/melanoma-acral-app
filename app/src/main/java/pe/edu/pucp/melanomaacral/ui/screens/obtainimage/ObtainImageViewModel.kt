@@ -28,9 +28,9 @@ import pe.edu.pucp.melanomaacral.ui.appContainer
 import java.io.File
 import java.time.LocalDate
 
-// Paso de captura. RF-02: primero la foto clínica de contexto; sin ella no se llega
-// a la dermoscópica (RF-01).
-enum class CaptureStep { CONTEXT, DERMOSCOPIC }
+// Paso de captura. RF-02: primero las dos fotos clínicas, la de contexto (zona con la lesión señalada) y el
+// primer plano; sin ellas no se llega a la dermoscópica (RF-01).
+enum class CaptureStep { CONTEXT, CLOSE_UP, DERMOSCOPIC }
 
 // Cómo se está obteniendo la imagen del paso actual.
 enum class CaptureMode { CHOOSING, CAMERA }
@@ -50,6 +50,7 @@ data class ObtainImageUiState(
     val step: CaptureStep = CaptureStep.CONTEXT,
     val mode: CaptureMode = CaptureMode.CHOOSING,
     val context: CaptureSlot = CaptureSlot(),
+    val closeUp: CaptureSlot = CaptureSlot(),
     val dermoscopic: CaptureSlot = CaptureSlot(),
     val previous: Evaluation? = null,          // si no es null, es un control (RF-13)
     val isProcessing: Boolean = false,
@@ -61,6 +62,7 @@ data class ObtainImageUiState(
     val current: CaptureSlot
         get() = when (step) {
             CaptureStep.CONTEXT -> context
+            CaptureStep.CLOSE_UP -> closeUp
             CaptureStep.DERMOSCOPIC -> dermoscopic
         }
 
@@ -68,6 +70,7 @@ data class ObtainImageUiState(
     val overlay: LesionImage?
         get() = when (step) {
             CaptureStep.CONTEXT -> previous?.images?.context
+            CaptureStep.CLOSE_UP -> previous?.images?.closeUp
             CaptureStep.DERMOSCOPIC -> previous?.images?.dermoscopic
         }
 }
@@ -86,15 +89,26 @@ class ObtainImageViewModel(
         val step: CaptureStep = CaptureStep.CONTEXT,
         val mode: CaptureMode = CaptureMode.CHOOSING,
         val context: CaptureSlot = CaptureSlot(),
+        val closeUp: CaptureSlot = CaptureSlot(),
         val dermoscopic: CaptureSlot = CaptureSlot(),
         val isProcessing: Boolean = false,
         val isRestoring: Boolean = true,
         val errorMessage: String? = null
     ) {
-        fun slot(step: CaptureStep) = if (step == CaptureStep.CONTEXT) context else dermoscopic
-        fun withSlot(step: CaptureStep, slot: CaptureSlot) =
-            if (step == CaptureStep.CONTEXT) copy(context = slot) else copy(dermoscopic = slot)
+        fun slot(step: CaptureStep) = when (step) {
+            CaptureStep.CONTEXT -> context
+            CaptureStep.CLOSE_UP -> closeUp
+            CaptureStep.DERMOSCOPIC -> dermoscopic
+        }
+        fun withSlot(step: CaptureStep, slot: CaptureSlot) = when (step) {
+            CaptureStep.CONTEXT -> copy(context = slot)
+            CaptureStep.CLOSE_UP -> copy(closeUp = slot)
+            CaptureStep.DERMOSCOPIC -> copy(dermoscopic = slot)
+        }
     }
+
+    // Las dos fotos clínicas se revisan como foto clínica; la dermoscópica, con encuadre.
+    private fun kindOf(step: CaptureStep) = if (step == CaptureStep.DERMOSCOPIC) ImageKind.DERMOSCOPIC else ImageKind.CONTEXT
 
     private val local = MutableStateFlow(Local())
 
@@ -104,6 +118,7 @@ class ObtainImageViewModel(
                 step = l.step,
                 mode = l.mode,
                 context = l.context,
+                closeUp = l.closeUp,
                 dermoscopic = l.dermoscopic,
                 previous = evaluations.forLesion(lesionId).lastOrNull(),
                 isProcessing = l.isProcessing,
@@ -121,9 +136,13 @@ class ObtainImageViewModel(
             if (draft == null) l.copy(isRestoring = false)
             else l.copy(
                 isRestoring = false,
-                step = if (draft.stage == DraftStage.CONTEXT || draft.context == null) CaptureStep.CONTEXT
-                else CaptureStep.DERMOSCOPIC,
+                step = when {
+                    draft.stage == DraftStage.CONTEXT || draft.context == null -> CaptureStep.CONTEXT
+                    draft.stage == DraftStage.CLOSE_UP || draft.closeUp == null -> CaptureStep.CLOSE_UP
+                    else -> CaptureStep.DERMOSCOPIC
+                },
                 context = CaptureSlot(draft.context, draft.contextReport),
+                closeUp = CaptureSlot(draft.closeUp, draft.closeUpReport),
                 dermoscopic = CaptureSlot(draft.dermoscopic, draft.dermoscopicReport)
             )
         }
@@ -137,7 +156,7 @@ class ObtainImageViewModel(
     private fun recheck(step: CaptureStep, image: LesionImage) {
         local.update { it.withSlot(step, CaptureSlot(image = image, isChecking = true)) }
         viewModelScope.launch {
-            val kind = if (step == CaptureStep.CONTEXT) ImageKind.CONTEXT else ImageKind.DERMOSCOPIC
+            val kind = kindOf(step)
             val checked = try {
                 CaptureSlot(image = image, report = quality.check(image, kind))
             } catch (e: Exception) {
@@ -164,32 +183,53 @@ class ObtainImageViewModel(
     // Imagen elegida con el selector de fotos (RF-21).
     fun onGalleryUri(uri: String) = process { storage.importFromGallery(uri) }
 
-    // Pasa a la imagen dermoscópica. RF-02: solo con la foto clínica ya obtenida.
-    // Si la dermoscópica ya se había tomado, se conserva.
-    fun goToDermoscopic(): Boolean {
-        if (!local.value.context.hasImage) return false
-        local.update { it.copy(step = CaptureStep.DERMOSCOPIC, mode = CaptureMode.CHOOSING, errorMessage = null) }
+    private fun goTo(step: CaptureStep) {
+        local.update { it.copy(step = step, mode = CaptureMode.CHOOSING, errorMessage = null) }
         saveDraft()
+    }
+
+    // Pasa al primer plano. RF-02: solo con la foto de contexto ya obtenida.
+    fun goToCloseUp(): Boolean {
+        if (!local.value.context.hasImage) return false
+        goTo(CaptureStep.CLOSE_UP)
         return true
     }
 
-    // Vuelve a la foto clínica sin perder ninguna de las dos fotos.
-    fun goToContext() {
-        local.update { it.copy(step = CaptureStep.CONTEXT, mode = CaptureMode.CHOOSING, errorMessage = null) }
-        saveDraft()
+    // Pasa a la imagen dermoscópica. RF-02: solo con las dos fotos clínicas ya obtenidas.
+    // Si la dermoscópica ya se había tomado, se conserva.
+    fun goToDermoscopic(): Boolean {
+        val l = local.value
+        if (!l.context.hasImage || !l.closeUp.hasImage) return false
+        goTo(CaptureStep.DERMOSCOPIC)
+        return true
+    }
+
+    // Vuelve a la foto de contexto sin perder ninguna foto.
+    fun goToContext() = goTo(CaptureStep.CONTEXT)
+
+    // «Atrás» dentro del flujo: un paso hacia la foto de contexto.
+    fun goBack() = when (local.value.step) {
+        CaptureStep.DERMOSCOPIC -> goTo(CaptureStep.CLOSE_UP)
+        CaptureStep.CLOSE_UP, CaptureStep.CONTEXT -> goTo(CaptureStep.CONTEXT)
     }
 
     // Guarda en el teléfono lo hecho hasta ahora, para poder salir y retomarlo (sin foto, nada que guardar).
     // Conserva el formulario de datos clínicos si ya se había empezado.
     private fun saveDraft(stage: DraftStage? = null) {
         val l = local.value
-        if (l.context.image == null && l.dermoscopic.image == null) return
+        if (l.context.image == null && l.closeUp.image == null && l.dermoscopic.image == null) return
         viewModelScope.launch {
             drafts.update(lesionId) { old ->
                 (old ?: EvaluationDraft(lesionId)).copy(
-                    stage = stage ?: if (l.step == CaptureStep.CONTEXT) DraftStage.CONTEXT else DraftStage.DERMOSCOPIC,
+                    stage = stage ?: when (l.step) {
+                        CaptureStep.CONTEXT -> DraftStage.CONTEXT
+                        CaptureStep.CLOSE_UP -> DraftStage.CLOSE_UP
+                        CaptureStep.DERMOSCOPIC -> DraftStage.DERMOSCOPIC
+                    },
                     context = l.context.image,
                     contextReport = l.context.report,
+                    closeUp = l.closeUp.image,
+                    closeUpReport = l.closeUp.report,
                     dermoscopic = l.dermoscopic.image,
                     dermoscopicReport = l.dermoscopic.report
                 )
@@ -203,14 +243,16 @@ class ObtainImageViewModel(
         local.value.dermoscopic.image?.let(prepareModel)
     }
 
-    // Las dos fotos con sus medidas de calidad (RNF-07), o null si falta alguna.
+    // Las tres fotos con sus medidas de calidad (RNF-07), o null si falta alguna (RF-02).
     fun capturedImages(): CapturedImages? {
         val l = local.value
         val context = l.context.image ?: return null
+        val closeUp = l.closeUp.image ?: return null
         val dermoscopic = l.dermoscopic.image ?: return null
         return CapturedImages(
             dermoscopic = dermoscopic.withMeasures(l.dermoscopic.report),
-            context = context.withMeasures(l.context.report)
+            context = context.withMeasures(l.context.report),
+            closeUp = closeUp.withMeasures(l.closeUp.report)
         )
     }
 
@@ -231,7 +273,7 @@ class ObtainImageViewModel(
             saveDraft()
 
             // RF-03: la calidad se revisa en cuanto se obtiene cada foto, no al final.
-            val kind = if (step == CaptureStep.CONTEXT) ImageKind.CONTEXT else ImageKind.DERMOSCOPIC
+            val kind = kindOf(step)
             val checked = try {
                 CaptureSlot(image = image, report = quality.check(image, kind))
             } catch (e: Exception) {

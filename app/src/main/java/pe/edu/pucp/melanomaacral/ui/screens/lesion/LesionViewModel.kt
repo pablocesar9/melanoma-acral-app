@@ -62,7 +62,8 @@ class LesionViewModel(
             if (current != null && current.editingEvaluationId != evaluation.id) { onBlocked(); return@launch }
             val draft = current ?: EvaluationDraft(
                 lesionId = lesionId, stage = DraftStage.CLINICAL_DATA,
-                context = evaluation.images.context, dermoscopic = evaluation.images.dermoscopic,
+                context = evaluation.images.context, closeUp = evaluation.images.closeUp,
+                dermoscopic = evaluation.images.dermoscopic,
                 clinicalForm = ClinicalDataUiState.fromClinicalData(evaluation.clinicalData).toDraft(),
                 updatedAtMillis = System.currentTimeMillis(), editingEvaluationId = evaluation.id
             )

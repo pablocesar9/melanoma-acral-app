@@ -85,7 +85,7 @@ class ResultViewModel(
             drafts.update(lesionId) {
                 EvaluationDraft(
                     lesionId = lesionId, stage = stage,
-                    context = images.context, dermoscopic = images.dermoscopic,
+                    context = images.context, closeUp = images.closeUp, dermoscopic = images.dermoscopic,
                     clinicalForm = ClinicalDataUiState.fromClinicalData(clinicalData).toDraft(),
                     updatedAtMillis = System.currentTimeMillis(), editingEvaluationId = id
                 )

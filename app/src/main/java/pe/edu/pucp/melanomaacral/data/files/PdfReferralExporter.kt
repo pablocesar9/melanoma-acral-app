@@ -53,9 +53,10 @@ class PdfReferralExporter(
         val ev = pkg.latest
         val base = "${pkg.lesionId}_${ev.id}_${ev.date}"
 
-        // Imágenes sueltas: contexto, dermoscópica, dermoscópica con el mapa y la anterior (si hay).
+        // Imágenes sueltas: contexto, primer plano, dermoscópica, dermoscópica con el mapa y la anterior (si hay).
         val images = mutableListOf<Pair<String, File>>()   // rótulo, archivo
         ev.images.context?.let { copy(it.uri, File(dir, "${base}_foto-clinica.jpg"))?.let { f -> images += "Foto clínica de contexto" to f } }
+        ev.images.closeUp?.let { copy(it.uri, File(dir, "${base}_primer-plano.jpg"))?.let { f -> images += "Foto clínica de primer plano" to f } }
         copy(ev.images.dermoscopic.uri, File(dir, "${base}_dermoscopica.jpg"))?.let { images += "Imagen dermoscópica" to it }
         val kind = if (ev.prediction.suggestsMelanoma) ExplanationKind.FOR_MELANOMA else ExplanationKind.AGAINST_MELANOMA
         val mapCaption = if (kind == ExplanationKind.FOR_MELANOMA) "Mapa de calor: zonas que llevaron al modelo a sugerir melanoma"

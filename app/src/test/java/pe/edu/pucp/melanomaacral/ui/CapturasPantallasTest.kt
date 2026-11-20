@@ -173,34 +173,41 @@ class CapturasPantallasTest {
     }
 
     @Test fun p05_obtener_paso1() = shoot("P-05-obtener-paso1", heightDp = 900) {
-        ObtainImageContent(ObtainImageUiState(), { File("x") }, {}, {}, {}, {}, {}, {}, {}, {}, {})
+        ObtainImageContent(ObtainImageUiState(), { File("x") }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
     }
 
     @Test fun p05_obtener_paso2_control() = shoot("P-05-obtener-paso2-control", heightDp = 1000) {
         ObtainImageContent(
             ObtainImageUiState(
-                step = CaptureStep.DERMOSCOPIC, context = CaptureSlot(foto(1), okReport), previous = twoEvaluations.first()
+                step = CaptureStep.DERMOSCOPIC, context = CaptureSlot(foto(1), okReport), closeUp = CaptureSlot(foto(1), okReport), previous = twoEvaluations.first()
             ),
-            { File("x") }, {}, {}, {}, {}, {}, {}, {}, {}, {}
+            { File("x") }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}
+        )
+    }
+
+    @Test fun p05_obtener_primer_plano() = shoot("P-05-obtener-primer-plano", heightDp = 900) {
+        ObtainImageContent(
+            ObtainImageUiState(step = CaptureStep.CLOSE_UP, context = CaptureSlot(foto(1), okReport)),
+            { File("x") }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}
         )
     }
 
     // P-06: la calidad se ve dentro de cada paso de P-05, apenas se obtiene la foto.
     @Test fun p06_calidad_foto_clinica_adecuada() = shoot("P-06-calidad-paso1-adecuada", heightDp = 1500) {
-        ObtainImageContent(ObtainImageUiState(context = CaptureSlot(foto(1), okReport)), { File("x") }, {}, {}, {}, {}, {}, {}, {}, {}, {})
+        ObtainImageContent(ObtainImageUiState(context = CaptureSlot(foto(1), okReport)), { File("x") }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
     }
 
     @Test fun p06_calidad_adecuada() = shoot("P-06-calidad-adecuada", heightDp = 1500) {
         ObtainImageContent(
-            ObtainImageUiState(step = CaptureStep.DERMOSCOPIC, context = CaptureSlot(foto(1), okReport), dermoscopic = CaptureSlot(foto(2), okReport)),
-            { File("x") }, {}, {}, {}, {}, {}, {}, {}, {}, {}
+            ObtainImageUiState(step = CaptureStep.DERMOSCOPIC, context = CaptureSlot(foto(1), okReport), closeUp = CaptureSlot(foto(1), okReport), dermoscopic = CaptureSlot(foto(2), okReport)),
+            { File("x") }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}
         )
     }
 
     @Test fun p06_calidad_insuficiente() = shoot("P-06-calidad-insuficiente", heightDp = 1800) {
         ObtainImageContent(
-            ObtainImageUiState(step = CaptureStep.DERMOSCOPIC, context = CaptureSlot(foto(1), okReport), dermoscopic = CaptureSlot(foto(2), badReport)),
-            { File("x") }, {}, {}, {}, {}, {}, {}, {}, {}, {}
+            ObtainImageUiState(step = CaptureStep.DERMOSCOPIC, context = CaptureSlot(foto(1), okReport), closeUp = CaptureSlot(foto(1), okReport), dermoscopic = CaptureSlot(foto(2), badReport)),
+            { File("x") }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}
         )
     }
 
@@ -277,13 +284,13 @@ class CapturasPantallasTest {
 
     @Test fun fuente13_calidad() = shoot("P-06-calidad-insuficiente", heightDp = 2400, fontScale = 1.3f) {
         ObtainImageContent(
-            ObtainImageUiState(step = CaptureStep.DERMOSCOPIC, context = CaptureSlot(foto(1), okReport), dermoscopic = CaptureSlot(foto(2), badReport)),
-            { File("x") }, {}, {}, {}, {}, {}, {}, {}, {}, {}
+            ObtainImageUiState(step = CaptureStep.DERMOSCOPIC, context = CaptureSlot(foto(1), okReport), closeUp = CaptureSlot(foto(1), okReport), dermoscopic = CaptureSlot(foto(2), badReport)),
+            { File("x") }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}
         )
     }
 
     @Test fun fuente13_obtener() = shoot("P-05-obtener-paso1", heightDp = 1300, fontScale = 1.3f) {
-        ObtainImageContent(ObtainImageUiState(), { File("x") }, {}, {}, {}, {}, {}, {}, {}, {}, {})
+        ObtainImageContent(ObtainImageUiState(), { File("x") }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
     }
 
     @Test fun fuente13_lesion() = shoot("P-04-lesion", heightDp = 1400, fontScale = 1.3f) {

@@ -3,7 +3,7 @@ package pe.edu.pucp.melanomaacral.domain.model
 import kotlinx.serialization.Serializable
 
 // Hasta dónde llegó una evaluación sin terminar.
-enum class DraftStage { CONTEXT, DERMOSCOPIC, CLINICAL_DATA }
+enum class DraftStage { CONTEXT, CLOSE_UP, DERMOSCOPIC, CLINICAL_DATA }
 
 // Formulario de datos clínicos a medio llenar, tal como lo dejó el usuario (texto incluido).
 @Serializable
@@ -34,6 +34,8 @@ data class EvaluationDraft(
     val stage: DraftStage = DraftStage.CONTEXT,
     val context: LesionImage? = null,
     val contextReport: QualityReport? = null,
+    val closeUp: LesionImage? = null,
+    val closeUpReport: QualityReport? = null,
     val dermoscopic: LesionImage? = null,
     val dermoscopicReport: QualityReport? = null,
     val clinicalForm: ClinicalFormDraft? = null,
@@ -46,16 +48,20 @@ data class EvaluationDraft(
         get() {
             val d = dermoscopic ?: return null
             val c = context ?: return null
-            return CapturedImages(dermoscopic = d.withMeasures(dermoscopicReport), context = c.withMeasures(contextReport))
+            return CapturedImages(
+                dermoscopic = d.withMeasures(dermoscopicReport), context = c.withMeasures(contextReport),
+                closeUp = closeUp?.withMeasures(closeUpReport)
+            )
         }
 
     // Todas las fotos del borrador (para borrarlas si se descarta).
-    val allImages: List<LesionImage> get() = listOfNotNull(context, dermoscopic)
+    val allImages: List<LesionImage> get() = listOfNotNull(context, closeUp, dermoscopic)
 
     // Lo que se muestra en las listas: en qué paso quedó.
     val stageLabel: String
         get() = when (stage) {
             DraftStage.CONTEXT -> "Quedó en la foto clínica"
+            DraftStage.CLOSE_UP -> "Quedó en el primer plano"
             DraftStage.DERMOSCOPIC -> "Quedó en la imagen dermoscópica"
             DraftStage.CLINICAL_DATA -> "Quedó en los datos clínicos"
         } + (editingEvaluationId?.let { " (editando $it)" } ?: "")

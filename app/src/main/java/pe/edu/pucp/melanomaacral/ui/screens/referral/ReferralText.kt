@@ -67,6 +67,7 @@ object ReferralText {
             appendLine()
             appendLine("Imágenes adjuntas (en el PDF y como archivos aparte)")
             appendLine("- Foto clínica de contexto: ${if (evaluation.images.context != null) "sí" else "no"}")
+            appendLine("- Foto clínica de primer plano: ${if (evaluation.images.closeUp != null) "sí" else "no"}")
             appendLine("- Imagen dermoscópica: sí")
             val d = evaluation.images.dermoscopic
             if (d.widthPx > 0) {

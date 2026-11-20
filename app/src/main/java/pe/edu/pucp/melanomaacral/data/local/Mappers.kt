@@ -36,6 +36,18 @@ fun EvaluationEntity.toDomain(): Evaluation {
             meanLuma = ctxLuma
         )
     }
+    val closeUp = closeupUri?.let {
+        LesionImage(
+            uri = it,
+            source = ImageSource.valueOf(closeupSource ?: ImageSource.CAMERA.name),
+            widthPx = closeupWidth ?: 0,
+            heightPx = closeupHeight ?: 0,
+            sizeBytes = closeupSize ?: 0,
+            capturedAtMillis = closeupCapturedAt ?: 0,
+            sharpness = closeupSharpness,
+            meanLuma = closeupLuma
+        )
+    }
     return Evaluation(
         id = id,
         lesionId = lesionId,
@@ -51,7 +63,8 @@ fun EvaluationEntity.toDomain(): Evaluation {
                 sharpness = dermSharpness,
                 meanLuma = dermLuma
             ),
-            context = context
+            context = context,
+            closeUp = closeUp
         ),
         clinicalData = ClinicalData(
             location = AcralLocation.valueOf(location),
@@ -83,6 +96,7 @@ fun EvaluationEntity.toDomain(): Evaluation {
 fun Evaluation.toEntity(): EvaluationEntity {
     val d = images.dermoscopic
     val c = images.context
+    val u = images.closeUp
     return EvaluationEntity(
         id = id,
         lesionId = lesionId,
@@ -91,6 +105,8 @@ fun Evaluation.toEntity(): EvaluationEntity {
         dermSize = d.sizeBytes, dermCapturedAt = d.capturedAtMillis, dermSharpness = d.sharpness, dermLuma = d.meanLuma,
         ctxUri = c?.uri, ctxSource = c?.source?.name, ctxWidth = c?.widthPx, ctxHeight = c?.heightPx,
         ctxSize = c?.sizeBytes, ctxCapturedAt = c?.capturedAtMillis, ctxSharpness = c?.sharpness, ctxLuma = c?.meanLuma,
+        closeupUri = u?.uri, closeupSource = u?.source?.name, closeupWidth = u?.widthPx, closeupHeight = u?.heightPx,
+        closeupSize = u?.sizeBytes, closeupCapturedAt = u?.capturedAtMillis, closeupSharpness = u?.sharpness, closeupLuma = u?.meanLuma,
         location = clinicalData.location.name,
         maxDiameterMm = clinicalData.maxDiameterMm,
         isElevatedOrPalpable = clinicalData.isElevatedOrPalpable,

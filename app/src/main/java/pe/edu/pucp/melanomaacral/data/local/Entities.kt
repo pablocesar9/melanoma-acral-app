@@ -57,6 +57,16 @@ data class EvaluationEntity(
     @ColumnInfo(name = "ctx_sharpness") val ctxSharpness: Float?,
     @ColumnInfo(name = "ctx_luma") val ctxLuma: Float?,
 
+    // Foto clínica de primer plano (RF-02); todo null si no hay (evaluaciones anteriores a la versión 4)
+    @ColumnInfo(name = "closeup_uri") val closeupUri: String? = null,
+    @ColumnInfo(name = "closeup_source") val closeupSource: String? = null,
+    @ColumnInfo(name = "closeup_width") val closeupWidth: Int? = null,
+    @ColumnInfo(name = "closeup_height") val closeupHeight: Int? = null,
+    @ColumnInfo(name = "closeup_size") val closeupSize: Long? = null,
+    @ColumnInfo(name = "closeup_captured_at") val closeupCapturedAt: Long? = null,
+    @ColumnInfo(name = "closeup_sharpness") val closeupSharpness: Float? = null,
+    @ColumnInfo(name = "closeup_luma") val closeupLuma: Float? = null,
+
     // Datos clínicos (RF-06, RF-07, RF-09, RF-16)
     val location: String,
     val maxDiameterMm: Float,

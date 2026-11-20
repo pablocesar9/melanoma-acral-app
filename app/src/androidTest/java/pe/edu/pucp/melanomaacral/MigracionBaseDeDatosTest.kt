@@ -73,4 +73,30 @@ class MigracionBaseDeDatosTest {
             assertEquals(0, c.getInt(3))
         }
     }
+
+    // v3 -> v4 (RF-02): columnas de la foto de primer plano, en null en las filas existentes.
+    @Test
+    fun v3_a_v4_conservaLasEvaluaciones() {
+        val nombre4 = "prueba-migracion-4.db"
+        helper.createDatabase(nombre4, 3).apply {
+            execSQL("INSERT INTO patients (id, createdOnEpochDay) VALUES ('HC-1', 20000)")
+            execSQL("INSERT INTO lesions (id, patientId, nextFollowUpEpochDay) VALUES ('LES-001', 'HC-1', NULL)")
+            execSQL(
+                """INSERT INTO evaluations (id, lesionId, dateEpochDay, derm_uri, derm_source, derm_width, derm_height, derm_size,
+                   derm_captured_at, location, maxDiameterMm, isElevatedOrPalpable, isNotHealing, isGrowingRapidly,
+                   hadPreviousProcedure, reportedChange, evolutionTime, hasSkinCancerHistory, hasBleeding, hasPain, hasItching,
+                   probMelanoma, isOutOfScope, modelVersion, threshold, isSimulated, action, reason, followUpAllowed)
+                   VALUES ('EV-001', 'LES-001', 20000, '/x/d.jpg', 'CAMERA', 100, 100, 1000, 0, 'SOLE', 4.0, 0, 0, 0, 0,
+                   'NO', 'UNKNOWN', 0, 0, 0, 0, 0.1, 0, 'simulado-0', 0.3, 1, 'FOLLOW_UP', 'SMALL_BELOW_THRESHOLD', 1)"""
+            )
+            close()
+        }
+        val db = helper.runMigrationsAndValidate(nombre4, 4, true)
+        db.query("SELECT id, closeup_uri FROM evaluations").use { c ->
+            assertEquals(1, c.count)
+            c.moveToFirst()
+            assertEquals("EV-001", c.getString(0))
+            assertNull(c.getString(1))
+        }
+    }
 }

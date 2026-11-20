@@ -17,7 +17,7 @@ data class ReferralPackage(
 )
 
 object ReferralPackages {
-    // Mínimo recomendado de imágenes: 2 a 3 (la de contexto, la dermoscópica y,
+    // Imágenes: las clínicas de contexto y de primer plano, la dermoscópica y,
     // en un control, la dermoscópica anterior para comparar).
     fun build(patientId: String, lesionId: String, evaluationsOfLesion: List<Evaluation>): ReferralPackage? {
         val sorted = evaluationsOfLesion.forLesion(lesionId)
@@ -25,6 +25,7 @@ object ReferralPackages {
         val previous = sorted.getOrNull(sorted.size - 2)
         val attachments = buildList {
             latest.images.context?.let { add(ReferralAttachment("Foto clínica de contexto", it)) }
+            latest.images.closeUp?.let { add(ReferralAttachment("Foto clínica de primer plano", it)) }
             add(ReferralAttachment("Imagen dermoscópica", latest.images.dermoscopic))
             previous?.let { add(ReferralAttachment("Dermoscópica anterior (${it.date})", it.images.dermoscopic)) }
         }

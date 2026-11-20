@@ -27,12 +27,13 @@ data class LesionImage(
     val meanLuma: Float? = null
 )
 
-// Imágenes de una captura: la dermoscópica y la clínica de contexto (RF-02).
+// Imágenes de una captura: la dermoscópica y las dos clínicas de RF-02: la de contexto (zona) y el primer plano.
 // La de contexto es obligatoria en el flujo real; sigue siendo nullable en el modelo
 // para los datos de ejemplo y las capturas anteriores a esta regla.
 // @Serializable: viaja dentro de las rutas de navegación del flujo de evaluación.
 @Serializable
 data class CapturedImages(
     val dermoscopic: LesionImage,
-    val context: LesionImage?
+    val context: LesionImage?,
+    val closeUp: LesionImage? = null
 )

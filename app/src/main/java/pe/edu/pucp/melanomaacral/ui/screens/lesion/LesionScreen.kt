@@ -271,6 +271,10 @@ private fun EvaluationDialog(evaluation: Evaluation, onDismiss: () -> Unit, onEd
                     Text("Foto clínica de contexto", style = MaterialTheme.typography.labelLarge)
                     LesionImageView(it, label = "Foto clínica de contexto", maxSidePx = 1600)
                 }
+                evaluation.images.closeUp?.let {
+                    Text("Foto clínica de primer plano", style = MaterialTheme.typography.labelLarge)
+                    LesionImageView(it, label = "Foto clínica de primer plano", maxSidePx = 1600)
+                }
             }
         }
     )
