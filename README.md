@@ -50,4 +50,4 @@ Los modelos (`app/src/main/assets/modelos/*.onnx` y `*.tflite`) no están en el 
 
 ## Licencia
 
-MIT (ver `LICENSE`).
+MIT (ver `LICENSE`); la licencia cubre el código. Las imágenes de ejemplo de las pruebas mantienen las licencias de sus fuentes de origen.
