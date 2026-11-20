@@ -1,0 +1,29 @@
+{
+ "metodo": "regresión logística (capa lineal) sobre el promedio global de las 7 etapas y la capa final de B0 (salida «capas» del ONNX, 2064 valores)",
+ "formula": "puntaje = sum_k pesos_k * (capas_k - media_k) / desv_k + sesgo; fuera de alcance si puntaje < umbral",
+ "n": 2064,
+ "dims_capas": [
+  16,
+  24,
+  40,
+  80,
+  112,
+  192,
+  320,
+  1280
+ ],
+ "sesgo": 1.301195126046021,
+ "umbral": 2.146160740648033,
+ "rechazo_validas_cv": 0.01031390134529148,
+ "archivos": {
+  "media": "media.f32",
+  "desv": "desv.f32",
+  "pesos": "pesos.f32"
+ },
+ "formato": "float32 little-endian",
+ "modelo_onnx": {
+  "archivo": "b0_melanoma_gradcam_capas.onnx",
+  "sha256": "17c8657debd13f12487f908551d22ab6d3d635f8a3df3d604e5f7f07ce824cc1"
+ },
+ "origen": "exportacion-movil-ood (ood2.py), resultado_ood2.tgz sha256 9b4c521bf2c51778590c9d2ac6fdb90ee27cb0caa2dbba64ea5a9ff56f3ef232"
+}

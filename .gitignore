@@ -1,0 +1,13 @@
+# Modelos y paquete de paridad: se descargan de la Release con scripts/obtener_modelos.sh
+app/src/main/assets/modelos/*.onnx
+app/src/main/assets/modelos/*.tflite
+app/src/androidTest/assets/paridad/
+# Compilación y entorno local
+/build
+/app/build
+.gradle/
+.idea/
+.kotlin/
+local.properties
+*.iml
+captures/

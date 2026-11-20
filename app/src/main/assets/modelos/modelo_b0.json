@@ -1,0 +1,63 @@
+{
+ "modelo": "sogR144_lr0.0003_lossa__B0__s0__full",
+ "arquitectura": "efficientnet_b0.ra_in1k",
+ "pesos_sha256": "050747d2bc76bbcd51897db018536a9ff73f965d6a6ac6a92a502928c4e1dbd6",
+ "umbral_logit": -5.141666666666667,
+ "tau_mascara": 0.5,
+ "regla": "melanoma si logit > umbral_logit; probabilidad = 1 / (1 + exp(-logit))",
+ "archivos": {
+  "onnx": {
+   "archivo": "b0_melanoma_gradcam.onnx",
+   "sha256": "430a818324decfe130fea9d5ba7a567d7bdcb334d8894043195f1d1123c2abce"
+  },
+  "tflite": {
+   "archivo": "b0_melanoma_gradcam.tflite",
+   "sha256": "1790c71b248b6df72052a7180073f483af1a40271ad38bbcb8324d2841ea94fd",
+   "signature": "serving_default",
+   "entrada": "args_0",
+   "salidas": {
+    "logit": "output_0",
+    "cam": "output_1",
+    "mapa_relu": "output_2",
+    "mapa_signo": "output_3"
+   }
+  }
+ },
+ "entrada": {
+  "nombre": "imagen",
+  "forma": [
+   1,
+   384,
+   384,
+   3
+  ],
+  "tipo": "float32",
+  "rango": "0 a 255 (sin normalizar: la normalizacion va dentro)",
+  "orden": "RGB, NHWC (fila por fila, como los pixeles de un Bitmap)"
+ },
+ "preprocesado_en_la_app": [
+  "1. Leer el JPEG y aplicar la orientacion EXIF (PIL ImageOps.exif_transpose).",
+  "2. Escalar para que el lado largo mida 384: s = 384 / lado_largo (double); nuevo = max(1, round(lado * s)) con el round de Python (mitades al par); INTER_AREA si se reduce, INTER_CUBIC si se amplia (OpenCV).",
+  "3. Letterbox: lienzo 384 x 384 relleno con (124,116,104); la imagen centrada en top = (384 - h) // 2, left = (384 - w) // 2. Caja = (left, top, left + w, top + h).",
+  "4. Region valida = dentro de la caja y a distancia <= 144 del centro (191.5, 191.5). Fuera de ella: (124,116,104).",
+  "5. Shades of Gray p = 6 solo con los pixeles validos (en double): ilum_c = (media(x^6))^(1/6); ilum = ilum / norma(ilum); x / (ilum * sqrt(3)), recortar a [0, 255] y TRUNCAR a entero (astype uint8).",
+  "6. Pasar el lienzo como float32 0-255 al modelo."
+ ],
+ "salidas": {
+  "logit": "(1,)",
+  "cam": "(1,12,12) Grad-CAM con signo",
+  "mapa_relu": "(1,384,384) interpolacion bilineal de ReLU(cam)",
+  "mapa_signo": "(1,384,384) interpolacion bilineal de cam"
+ },
+ "posprocesado_en_la_app": [
+  "1. Recortar mapa_relu y mapa_signo a la caja (x0,y0,x1,y1).",
+  "2. Si max(mapa_relu recortado) > 0: mapa = mapa_relu / max. Si no (fallback): mapa = (mapa_signo - min) / (max - min).",
+  "3. Mascara = mapa >= 0.5. Pintar el mapa sobre la foto escalandolo a su tamano (lineal)."
+ ],
+ "referencia": "explicar_final.py (sha256 aa95813e) y cache_lib.py (sha256 c8c6bf0a); paquete de paridad en paridad/",
+ "fuera_de_alcance": {
+  "archivo_onnx": "b0_melanoma_gradcam_capas.onnx (mismos pesos y salidas, más «capas» 1 × 2064)",
+  "parametros": "fuera_de_alcance/fuera_de_alcance.json",
+  "regla": "puntaje = Σ pesos·(capas − media)/desv + sesgo; fuera de alcance si puntaje < umbral (RF-05)"
+ }
+}
