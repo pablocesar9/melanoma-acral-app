@@ -10,24 +10,30 @@ import androidx.room.migration.AutoMigrationSpec
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-// Base de datos local, versión 4 (esquemas exportados en app/schemas/). v1 -> v2 (2026-11-17): columnas notes,
+// Base de datos local, versión 5 (esquemas exportados en app/schemas/). v1 -> v2 (2026-11-17): columnas notes,
 // score, scoreThreshold y editedAtMillis en evaluations, todas opcionales; las filas existentes quedan con null.
 // v2 -> v3 (2026-11-20, RF-09): se quita isNodularOrBlue y se agregan isNotHealing e isGrowingRapidly (0 en las filas
 // existentes); migración automática de Room. v3 -> v4 (2026-11-20, RF-02): columnas closeup_* de la foto clínica
-// de primer plano, todas opcionales; las filas existentes quedan con null.
+// de primer plano, todas opcionales; las filas existentes quedan con null. v4 -> v5 (2026-11-20, RF-17, RF-23, RNF-12):
+// tablas nuevas consents, decisions, users y audit_log; las tablas existentes no cambian.
 // Cuando cambie el esquema: subir la versión y agregar un Migration (no usar
 // fallbackToDestructiveMigration: borraría el historial de los pacientes).
 @Database(
-    entities = [PatientEntity::class, LesionEntity::class, EvaluationEntity::class],
-    version = 4,
+    entities = [
+        PatientEntity::class, LesionEntity::class, EvaluationEntity::class,
+        ConsentEntity::class, DecisionEntity::class, UserEntity::class, AuditEntity::class
+    ],
+    version = 5,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 2, to = 3, spec = AppDatabase.Migracion2a3::class),
-        AutoMigration(from = 3, to = 4)
+        AutoMigration(from = 3, to = 4),
+        AutoMigration(from = 4, to = 5)
     ]
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun recordsDao(): RecordsDao
+    abstract fun governanceDao(): GovernanceDao
 
     @DeleteColumn(tableName = "evaluations", columnName = "isNodularOrBlue")
     class Migracion2a3 : AutoMigrationSpec

@@ -20,6 +20,7 @@ import pe.edu.pucp.melanomaacral.domain.model.Evaluation
 import pe.edu.pucp.melanomaacral.domain.model.forLesion
 import pe.edu.pucp.melanomaacral.domain.repository.RecordsRepository
 import pe.edu.pucp.melanomaacral.ui.appContainer
+import pe.edu.pucp.melanomaacral.domain.model.AuditAction
 import java.time.LocalDate
 
 data class LesionUiState(
@@ -36,8 +37,11 @@ class LesionViewModel(
     private val lesionId: String,
     private val records: RecordsRepository,
     private val drafts: DraftRepository,
-    private val storage: ImageStorage
+    private val storage: ImageStorage,
+    private val audit: suspend (AuditAction, String) -> Unit = { _, _ -> }
 ) : ViewModel() {
+
+    init { viewModelScope.launch { audit(AuditAction.VIEW, "Lesión $lesionId") } }
 
     val uiState: StateFlow<LesionUiState> =
         combine(records.lesions, records.evaluations, drafts.drafts) { lesions, evaluations, pending ->
@@ -84,7 +88,7 @@ class LesionViewModel(
         fun factory(lesionId: String): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val container = appContainer()
-                LesionViewModel(lesionId, container.recordsRepository, container.draftRepository, container.imageStorage)
+                LesionViewModel(lesionId, container.recordsRepository, container.draftRepository, container.imageStorage, container.accessRepository::audit)
             }
         }
     }

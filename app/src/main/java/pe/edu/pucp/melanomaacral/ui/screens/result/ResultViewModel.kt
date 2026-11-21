@@ -10,6 +10,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import pe.edu.pucp.melanomaacral.domain.model.AuditAction
+import pe.edu.pucp.melanomaacral.domain.model.ProfessionalDecision
+import pe.edu.pucp.melanomaacral.domain.repository.AccessRepository
+import pe.edu.pucp.melanomaacral.domain.repository.DecisionRepository
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import pe.edu.pucp.melanomaacral.domain.model.CapturedImages
@@ -35,7 +42,9 @@ class ResultViewModel(
     private val classifier: ClassifierRepository,
     private val explanations: ExplanationRepository,
     private val records: RecordsRepository,
-    private val drafts: DraftRepository
+    private val drafts: DraftRepository,
+    private val decisions: DecisionRepository? = null,
+    private val access: AccessRepository? = null
 ) : ViewModel() {
 
     // _uiState (privado, modificable) solo lo cambia el ViewModel.
@@ -46,6 +55,14 @@ class ResultViewModel(
     // Próximo control de la lesión (cambia si se programa desde esta pantalla).
     val nextFollowUp: StateFlow<LocalDate?> = records.lesions
         .map { l -> l.find { it.id == lesionId }?.nextFollowUp }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    // Decisión del profesional sobre esta evaluación (RF-23), cuando ya quedó guardada.
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val decision: StateFlow<ProfessionalDecision?> = _uiState
+        .map { (it as? ResultUiState.Success)?.evaluationId }
+        .distinctUntilChanged()
+        .flatMapLatest { id -> if (id == null || decisions == null) flowOf(null) else decisions.observe(id) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     init {
@@ -65,6 +82,7 @@ class ResultViewModel(
             } else {
                 records.addEvaluation(lesionId, LocalDate.now(), images, clinicalData, prediction, recommendation)
             }
+            access?.audit(if (editing != null) AuditAction.MODIFY else AuditAction.CREATE, "Evaluación $id de $lesionId")
             // La evaluación ya quedó guardada: deja de estar pendiente (sus fotos siguen en uso).
             drafts.delete(lesionId)
             // Mapa según lo que sugiere el modelo: a favor de melanoma (Grad-CAM) o en contra (análisis XAI).
@@ -110,7 +128,9 @@ class ResultViewModel(
                     classifier = container.classifierRepository,
                     explanations = container.explanationRepository,
                     records = container.recordsRepository,
-                    drafts = container.draftRepository
+                    drafts = container.draftRepository,
+                    decisions = container.decisionRepository,
+                    access = container.accessRepository
                 )
             }
         }

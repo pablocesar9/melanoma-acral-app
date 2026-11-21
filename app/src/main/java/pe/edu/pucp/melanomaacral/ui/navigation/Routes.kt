@@ -30,3 +30,8 @@ import pe.edu.pucp.melanomaacral.domain.model.ClinicalData
 @Serializable data class ScheduleFollowUpRoute(val lesionId: String) : NavKey        // P-09
 @Serializable data class ReferralRoute(val lesionId: String) : NavKey                // P-10
 @Serializable data object AboutRoute : NavKey                                        // P-11
+
+// Uso con pacientes (diseño P-12, P-13 y P-14; el acceso P-14 se muestra antes de la navegación, en MainActivity).
+@Serializable data class ConsentRoute(val lesionId: String) : NavKey                 // P-12 (antes de la captura)
+@Serializable data class DecisionRoute(val evaluationId: String, val suggested: String) : NavKey  // P-13
+@Serializable data object AuditLogRoute : NavKey                                     // Registro de acciones (RNF-12)

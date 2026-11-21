@@ -309,4 +309,68 @@ class CapturasPantallasTest {
     }
 
     @Test fun fuente13_acerca() = shoot("P-11-acerca", heightDp = 2000, fontScale = 1.3f) { AboutScreen({}) }
+
+    // ---- P-12 a P-14 (uso con pacientes) y registro de acciones ----
+    @Test fun p12_consentimiento() = shoot("P-12-consentimiento", heightDp = 1000) {
+        pe.edu.pucp.melanomaacral.ui.screens.consent.ConsentContent(
+            pe.edu.pucp.melanomaacral.ui.screens.consent.ConsentUiState(isLoading = false, patientId = "P-001",
+                selected = pe.edu.pucp.melanomaacral.domain.model.ConsentType.VERBAL, today = today),
+            {}, {}, {}
+        )
+    }
+
+    @Test fun p12_consentimiento_rechazado() = shoot("P-12-consentimiento-rechazado", heightDp = 1000) {
+        pe.edu.pucp.melanomaacral.ui.screens.consent.ConsentContent(
+            pe.edu.pucp.melanomaacral.ui.screens.consent.ConsentUiState(isLoading = false, patientId = "P-001",
+                selected = pe.edu.pucp.melanomaacral.domain.model.ConsentType.REFUSED, refusedNow = true, today = today),
+            {}, {}, {}
+        )
+    }
+
+    @Test fun p13_decision() = shoot("P-13-decision-profesional", heightDp = 1100) {
+        pe.edu.pucp.melanomaacral.ui.screens.decision.DecisionContent(
+            pe.edu.pucp.melanomaacral.ui.screens.decision.DecisionUiState(
+                "EV-002", ManagementAction.REFER, choice = pe.edu.pucp.melanomaacral.domain.model.DecisionChoice.MODIFIES,
+                newAction = ManagementAction.FOLLOW_UP, reason = "Lesión estable en controles previos"
+            ),
+            {}, {}, {}, {}, {}
+        )
+    }
+
+    @Test fun p14_acceso() = shoot("P-14-acceso") {
+        pe.edu.pucp.melanomaacral.ui.screens.access.AccessContent(
+            pe.edu.pucp.melanomaacral.ui.screens.access.AccessUiState(isLoading = false, isCreating = false, username = "usuario1", pin = "1234"),
+            {}, {}, {}, {}, {}
+        )
+    }
+
+    @Test fun p14_crear_usuario() = shoot("P-14-crear-usuario", heightDp = 1000) {
+        pe.edu.pucp.melanomaacral.ui.screens.access.AccessContent(
+            pe.edu.pucp.melanomaacral.ui.screens.access.AccessUiState(isLoading = false, isCreating = true),
+            {}, {}, {}, {}, {}
+        )
+    }
+
+    @Test fun registro_acciones() = shoot("registro-de-acciones") {
+        val t = java.time.LocalDateTime.of(2026, 11, 20, 10, 0).atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+        pe.edu.pucp.melanomaacral.ui.screens.access.AuditLogContent(
+            listOf(
+                pe.edu.pucp.melanomaacral.domain.model.AuditEntry(4, "usuario1", pe.edu.pucp.melanomaacral.domain.model.AuditAction.EXPORT, "PDF de derivación de LES-001", t + 240_000),
+                pe.edu.pucp.melanomaacral.domain.model.AuditEntry(3, "usuario1", pe.edu.pucp.melanomaacral.domain.model.AuditAction.MODIFY, "Decisión en EV-002: MODIFIES", t + 180_000),
+                pe.edu.pucp.melanomaacral.domain.model.AuditEntry(2, "usuario1", pe.edu.pucp.melanomaacral.domain.model.AuditAction.CREATE, "Evaluación EV-002 de LES-001", t + 120_000),
+                pe.edu.pucp.melanomaacral.domain.model.AuditEntry(1, "usuario1", pe.edu.pucp.melanomaacral.domain.model.AuditAction.LOGIN, "Sesión", t)
+            ),
+            {}
+        )
+    }
+
+    @Test fun p08_resultado_con_decision() = shoot("P-08-resultado-con-decision", heightDp = 2200) {
+        ResultContent(
+            ResultUiState.Success(prediction, refer, sole, images, heat, evaluationId = "EV-002"),
+            {}, {}, {}, {}, {},
+            decision = pe.edu.pucp.melanomaacral.domain.model.ProfessionalDecision(
+                "EV-002", pe.edu.pucp.melanomaacral.domain.model.DecisionChoice.ACCEPTS, ManagementAction.REFER, "", "usuario1", 0L
+            )
+        )
+    }
 }

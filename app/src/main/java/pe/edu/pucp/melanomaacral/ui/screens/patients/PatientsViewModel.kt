@@ -20,6 +20,7 @@ import pe.edu.pucp.melanomaacral.domain.repository.RecordsRepository
 import pe.edu.pucp.melanomaacral.domain.rules.PatientIdError
 import pe.edu.pucp.melanomaacral.domain.rules.PatientIdRules
 import pe.edu.pucp.melanomaacral.ui.appContainer
+import pe.edu.pucp.melanomaacral.domain.model.AuditAction
 import java.time.LocalDate
 
 // Lo que la lista muestra de cada paciente.
@@ -45,7 +46,8 @@ data class PatientsUiState(
 
 class PatientsViewModel(
     private val records: RecordsRepository,
-    private val drafts: DraftRepository
+    private val drafts: DraftRepository,
+    private val audit: suspend (AuditAction, String) -> Unit = { _, _ -> }
 ) : ViewModel() {
 
     private val dialog = MutableStateFlow(NewPatientDialogState())
@@ -80,7 +82,7 @@ class PatientsViewModel(
             dialog.update { it.copy(error = error) }
             return null
         }
-        viewModelScope.launch { records.createPatient(id) }
+        viewModelScope.launch { records.createPatient(id); audit(AuditAction.CREATE, "Paciente $id") }
         dialog.value = NewPatientDialogState()
         return id
     }
@@ -89,7 +91,7 @@ class PatientsViewModel(
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val container = appContainer()
-                PatientsViewModel(container.recordsRepository, container.draftRepository)
+                PatientsViewModel(container.recordsRepository, container.draftRepository, container.accessRepository::audit)
             }
         }
     }

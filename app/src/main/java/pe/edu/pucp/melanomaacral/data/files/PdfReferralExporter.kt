@@ -1,5 +1,6 @@
 package pe.edu.pucp.melanomaacral.data.files
 
+import pe.edu.pucp.melanomaacral.ui.screens.decision.label
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -223,6 +224,17 @@ class PdfReferralExporter(
             c.drawText(rec.action.label(), M + 10f, y + 4f, paint(13f, true, if (refer) REFER_FG else INK))
             c.save(); c.translate(M + 10f, y + 10f); rl.draw(c); c.restore()
             y += boxH + 10f
+
+            // RF-23: lo que decidió el profesional frente a la sugerencia, si lo registró.
+            pkg.decision?.let { d ->
+                section("Decisión del profesional")
+                table(buildList {
+                    add("Decisión" to d.choice.label())
+                    add("Conducta decidida" to (d.finalAction?.label() ?: "Ninguna de las sugeridas"))
+                    if (d.reason.isNotBlank()) add("Motivo" to d.reason)
+                    add("Registrada por" to "${d.decidedBy}, ${SimpleDateFormat("dd/MM/yyyy HH:mm", Locale("es", "PE")).format(Date(d.decidedAtMillis))}")
+                })
+            }
 
             section("Resultado del modelo")
             if (ev.prediction.isOutOfScope) {

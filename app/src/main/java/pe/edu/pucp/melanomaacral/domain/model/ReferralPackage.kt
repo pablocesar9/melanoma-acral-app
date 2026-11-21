@@ -13,7 +13,8 @@ data class ReferralPackage(
     val lesionId: String,
     val latest: Evaluation,
     val previous: Evaluation?,
-    val attachments: List<ReferralAttachment>
+    val attachments: List<ReferralAttachment>,
+    val decision: ProfessionalDecision? = null   // RF-23: decisión del profesional sobre la última evaluación
 )
 
 object ReferralPackages {

@@ -18,6 +18,8 @@ import pe.edu.pucp.melanomaacral.domain.model.ReferralPackages
 import pe.edu.pucp.melanomaacral.domain.repository.RecordsRepository
 import pe.edu.pucp.melanomaacral.domain.repository.ReferralExporter
 import pe.edu.pucp.melanomaacral.ui.appContainer
+import pe.edu.pucp.melanomaacral.domain.model.AuditAction
+import pe.edu.pucp.melanomaacral.domain.model.ProfessionalDecision
 
 data class ReferralUiState(
     val isLoading: Boolean = true,
@@ -31,7 +33,9 @@ data class ReferralUiState(
 class ReferralViewModel(
     private val lesionId: String,
     records: RecordsRepository,
-    private val exporter: ReferralExporter
+    private val exporter: ReferralExporter,
+    private val audit: suspend (AuditAction, String) -> Unit = { _, _ -> },
+    decisions: kotlinx.coroutines.flow.Flow<List<ProfessionalDecision>> = kotlinx.coroutines.flow.flowOf(emptyList())
 ) : ViewModel() {
 
     private data class Local(val isExporting: Boolean = false, val errorMessage: String? = null)
@@ -40,9 +44,10 @@ class ReferralViewModel(
     private var currentPackage: ReferralPackage? = null
 
     val uiState: StateFlow<ReferralUiState> =
-        combine(records.lesions, records.evaluations, local) { lesions, evaluations, l ->
+        combine(records.lesions, records.evaluations, local, decisions) { lesions, evaluations, l, ds ->
             val lesion = lesions.find { it.id == lesionId }
             val pkg = lesion?.let { ReferralPackages.build(it.patientId, lesionId, evaluations) }
+                ?.let { p -> p.copy(decision = ds.find { it.evaluationId == p.latest.id }) }
             currentPackage = pkg
             ReferralUiState(
                 isLoading = false,
@@ -61,6 +66,7 @@ class ReferralViewModel(
         viewModelScope.launch {
             try {
                 val uri = exporter.exportPdf(pkg)
+                audit(AuditAction.EXPORT, "PDF de derivación de $lesionId")
                 local.value = Local()
                 onReady(uri)
             } catch (e: Exception) {
@@ -73,7 +79,7 @@ class ReferralViewModel(
         fun factory(lesionId: String): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val container = appContainer()
-                ReferralViewModel(lesionId, container.recordsRepository, container.referralExporter)
+                ReferralViewModel(lesionId, container.recordsRepository, container.referralExporter, container.accessRepository::audit, container.decisionRepository.all)
             }
         }
     }

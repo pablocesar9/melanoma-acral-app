@@ -99,4 +99,29 @@ class MigracionBaseDeDatosTest {
             assertNull(c.getString(1))
         }
     }
+
+    // v4 -> v5 (RF-17, RF-23, RNF-12): tablas nuevas; las evaluaciones existentes quedan iguales y sin decisión.
+    @Test
+    fun v4_a_v5_conservaLasEvaluacionesYAgregaTablas() {
+        val nombre5 = "prueba-migracion-5.db"
+        helper.createDatabase(nombre5, 4).apply {
+            execSQL("INSERT INTO patients (id, createdOnEpochDay) VALUES ('HC-1', 20000)")
+            execSQL("INSERT INTO lesions (id, patientId, nextFollowUpEpochDay) VALUES ('LES-001', 'HC-1', NULL)")
+            execSQL(
+                """INSERT INTO evaluations (id, lesionId, dateEpochDay, derm_uri, derm_source, derm_width, derm_height, derm_size,
+                   derm_captured_at, location, maxDiameterMm, isElevatedOrPalpable, isNotHealing, isGrowingRapidly,
+                   hadPreviousProcedure, reportedChange, evolutionTime, hasSkinCancerHistory, hasBleeding, hasPain, hasItching,
+                   probMelanoma, isOutOfScope, modelVersion, threshold, isSimulated, action, reason, followUpAllowed)
+                   VALUES ('EV-001', 'LES-001', 20000, '/x/d.jpg', 'CAMERA', 100, 100, 1000, 0, 'SOLE', 4.0, 0, 0, 0, 0,
+                   'NO', 'UNKNOWN', 0, 0, 0, 0, 0.1, 0, 'simulado-0', 0.3, 1, 'FOLLOW_UP', 'SMALL_BELOW_THRESHOLD', 1)"""
+            )
+            close()
+        }
+        val db = helper.runMigrationsAndValidate(nombre5, 5, true)
+        db.query("SELECT COUNT(*) FROM evaluations").use { c -> c.moveToFirst(); assertEquals(1, c.getInt(0)) }
+        db.query("SELECT COUNT(*) FROM decisions").use { c -> c.moveToFirst(); assertEquals(0, c.getInt(0)) }
+        db.query("SELECT COUNT(*) FROM consents").use { c -> c.moveToFirst(); assertEquals(0, c.getInt(0)) }
+        db.query("SELECT COUNT(*) FROM users").use { c -> c.moveToFirst(); assertEquals(0, c.getInt(0)) }
+        db.query("SELECT COUNT(*) FROM audit_log").use { c -> c.moveToFirst(); assertEquals(0, c.getInt(0)) }
+    }
 }

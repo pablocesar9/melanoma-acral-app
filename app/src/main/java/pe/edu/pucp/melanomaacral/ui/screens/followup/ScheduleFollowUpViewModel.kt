@@ -16,6 +16,7 @@ import pe.edu.pucp.melanomaacral.domain.model.forLesion
 import pe.edu.pucp.melanomaacral.domain.repository.RecordsRepository
 import pe.edu.pucp.melanomaacral.domain.repository.ReminderScheduler
 import pe.edu.pucp.melanomaacral.ui.appContainer
+import pe.edu.pucp.melanomaacral.domain.model.AuditAction
 import java.time.LocalDate
 
 data class ScheduleFollowUpUiState(
@@ -31,7 +32,8 @@ data class ScheduleFollowUpUiState(
 class ScheduleFollowUpViewModel(
     private val lesionId: String,
     private val records: RecordsRepository,
-    private val reminders: ReminderScheduler
+    private val reminders: ReminderScheduler,
+    private val audit: suspend (AuditAction, String) -> Unit = { _, _ -> }
 ) : ViewModel() {
 
     private val selectedInterval = MutableStateFlow(FollowUpInterval.SHORT_3_MONTHS)
@@ -57,6 +59,7 @@ class ScheduleFollowUpViewModel(
         if (!state.followUpAllowed) return
         viewModelScope.launch {
             records.scheduleFollowUp(lesionId, state.date)
+            audit(AuditAction.MODIFY, "Control de $lesionId: ${state.date}")
             reminders.schedule(lesionId, state.date)   // RF-14
             onDone()
         }
@@ -66,7 +69,7 @@ class ScheduleFollowUpViewModel(
         fun factory(lesionId: String): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val container = appContainer()
-                ScheduleFollowUpViewModel(lesionId, container.recordsRepository, container.reminderScheduler)
+                ScheduleFollowUpViewModel(lesionId, container.recordsRepository, container.reminderScheduler, container.accessRepository::audit)
             }
         }
     }

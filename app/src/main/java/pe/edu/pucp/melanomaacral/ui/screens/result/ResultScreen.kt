@@ -76,6 +76,8 @@ import pe.edu.pucp.melanomaacral.domain.model.EvolutionTime
 import pe.edu.pucp.melanomaacral.domain.model.Explanation
 import pe.edu.pucp.melanomaacral.domain.model.LesionImage
 import pe.edu.pucp.melanomaacral.domain.model.ManagementAction
+import pe.edu.pucp.melanomaacral.domain.model.ProfessionalDecision
+import pe.edu.pucp.melanomaacral.ui.screens.decision.label
 import pe.edu.pucp.melanomaacral.domain.model.Prediction
 import pe.edu.pucp.melanomaacral.domain.model.Recommendation
 import pe.edu.pucp.melanomaacral.domain.model.RecommendationReason
@@ -104,9 +106,11 @@ fun ResultScreen(
     onShowLimitations: () -> Unit,
     onBack: () -> Unit,
     onEdit: (DraftStage) -> Unit = {},
+    onDecide: (evaluationId: String, suggested: ManagementAction) -> Unit = { _, _ -> },
     viewModel: ResultViewModel = viewModel(factory = ResultViewModel.factory(lesionId, images, clinicalData))
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val decision by viewModel.decision.collectAsStateWithLifecycle()
     val nextFollowUp by viewModel.nextFollowUp.collectAsStateWithLifecycle()
     // Ya guardada, «Atrás» no puede reenviar el formulario (duplicaría la evaluación): abre la edición en los datos
     // clínicos, con todo precargado; al terminar reemplaza la evaluación guardada.
@@ -121,7 +125,11 @@ fun ResultScreen(
         onShowLimitations = onShowLimitations,
         onBack = back,
         onEdit = { edit(DraftStage.CONTEXT) },
-        nextFollowUp = nextFollowUp
+        nextFollowUp = nextFollowUp,
+        decision = decision,
+        onDecide = {
+            (uiState as? ResultUiState.Success)?.let { st -> st.evaluationId?.let { onDecide(it, st.recommendation.action) } }
+        }
     )
 }
 
@@ -137,6 +145,8 @@ fun ResultContent(
     onBack: () -> Unit,
     onEdit: () -> Unit = {},
     nextFollowUp: LocalDate? = null,
+    decision: ProfessionalDecision? = null,
+    onDecide: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val success = uiState as? ResultUiState.Success
@@ -170,6 +180,8 @@ fun ResultContent(
                 onShowLimitations = onShowLimitations,
                 onEdit = onEdit,
                 nextFollowUp = nextFollowUp,
+                decision = decision,
+                onDecide = onDecide,
                 modifier = Modifier.padding(innerPadding)
             )
         }
@@ -184,6 +196,8 @@ private fun SuccessContent(
     onShowLimitations: () -> Unit,
     onEdit: () -> Unit,
     nextFollowUp: LocalDate?,
+    decision: ProfessionalDecision? = null,
+    onDecide: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val prediction = state.prediction
@@ -208,6 +222,11 @@ private fun SuccessContent(
                 "Puedes editarla con «Editar esta evaluación» o con «Atrás».",
             kind = NoticeKind.Saved
         )
+
+        // RF-23 (P-13): la decisión del profesional frente a la sugerencia; no aplica si no hay sugerencia (RF-05).
+        if (recommendation.action != ManagementAction.NONE && state.evaluationId != null) {
+            DecisionSummary(decision = decision, onDecide = onDecide)
+        }
 
         nextFollowUp?.let {
             NoticeCard(
@@ -491,5 +510,30 @@ fun ResultLoadingPreview() {
             uiState = ResultUiState.Loading,
             onDone = {}, onScheduleFollowUp = {}, onReferral = {}, onShowLimitations = {}, onBack = {}
         )
+    }
+}
+
+// Resumen de la decisión del profesional (RF-23) y botón para registrarla o cambiarla.
+@Composable
+private fun DecisionSummary(decision: ProfessionalDecision?, onDecide: () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(Space.s)) {
+        if (decision == null) {
+            Text(
+                "Registre si acepta, modifica o descarta la sugerencia.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            androidx.compose.material3.OutlinedButton(onClick = onDecide, modifier = Modifier.fillMaxWidth()) {
+                Text("Registrar su decisión")
+            }
+        } else {
+            NoticeCard(
+                title = "Su decisión: " + decision.choice.label(),
+                text = (decision.finalAction?.let { "Conducta: ${it.label()}. " } ?: "Sin conducta de la aplicación. ") +
+                    (if (decision.reason.isNotBlank()) "Motivo: ${decision.reason}. " else "") + "Registrada por ${decision.decidedBy}.",
+                kind = NoticeKind.Info
+            )
+            androidx.compose.material3.TextButton(onClick = onDecide, modifier = Modifier.fillMaxWidth()) { Text("Cambiar su decisión") }
+        }
     }
 }

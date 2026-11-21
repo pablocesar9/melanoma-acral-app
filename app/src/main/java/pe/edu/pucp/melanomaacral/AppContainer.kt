@@ -8,6 +8,12 @@ import kotlinx.coroutines.launch
 import pe.edu.pucp.melanomaacral.domain.model.LesionImage
 import pe.edu.pucp.melanomaacral.data.local.AppDatabase
 import pe.edu.pucp.melanomaacral.data.local.RoomRecordsRepository
+import pe.edu.pucp.melanomaacral.data.local.RoomAccessRepository
+import pe.edu.pucp.melanomaacral.data.local.RoomConsentRepository
+import pe.edu.pucp.melanomaacral.data.local.RoomDecisionRepository
+import pe.edu.pucp.melanomaacral.domain.repository.AccessRepository
+import pe.edu.pucp.melanomaacral.domain.repository.ConsentRepository
+import pe.edu.pucp.melanomaacral.domain.repository.DecisionRepository
 import pe.edu.pucp.melanomaacral.data.files.AndroidImageStorage
 import pe.edu.pucp.melanomaacral.data.notifications.WorkManagerReminderScheduler
 import pe.edu.pucp.melanomaacral.data.files.FileDraftRepository
@@ -53,4 +59,10 @@ class AppContainer(context: Context) {
         appScope.launch { runCatching { classifierRepository.classify(image) } }
     }
     val recordsRepository: RecordsRepository by lazy { RoomRecordsRepository(database.recordsDao()) }
+
+    // Uso con pacientes: acceso por usuario y registro de acciones (RNF-12), consentimiento (RF-17)
+    // y decisión del profesional (RF-23).
+    val accessRepository: AccessRepository by lazy { RoomAccessRepository(database.governanceDao()) }
+    val consentRepository: ConsentRepository by lazy { RoomConsentRepository(database.governanceDao(), accessRepository) }
+    val decisionRepository: DecisionRepository by lazy { RoomDecisionRepository(database.governanceDao(), accessRepository) }
 }

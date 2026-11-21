@@ -38,7 +38,10 @@ import pe.edu.pucp.melanomaacral.ui.theme.Space
 fun HomeScreen(
     onOpenPatients: () -> Unit,
     onOpenAbout: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    currentUser: String? = null,
+    onOpenAuditLog: () -> Unit = {},
+    onLogout: () -> Unit = {}
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -96,6 +99,16 @@ fun HomeScreen(
                 ) {
                     Icon(Icons.Filled.CloudOff, contentDescription = null, modifier = Modifier.size(20.dp))
                     Text("Funciona sin conexión a internet", style = MaterialTheme.typography.labelLarge)
+                }
+            }
+            // RNF-12: usuario de la sesión, registro de acciones y cierre de sesión.
+            if (currentUser != null) {
+                Column(verticalArrangement = Arrangement.spacedBy(Space.xs)) {
+                    Text("Sesión: $currentUser", style = MaterialTheme.typography.bodyMedium)
+                    Row(horizontalArrangement = Arrangement.spacedBy(Space.s)) {
+                        androidx.compose.material3.OutlinedButton(onClick = onOpenAuditLog) { Text("Registro de acciones") }
+                        androidx.compose.material3.TextButton(onClick = onLogout) { Text("Cerrar sesión") }
+                    }
                 }
             }
         }

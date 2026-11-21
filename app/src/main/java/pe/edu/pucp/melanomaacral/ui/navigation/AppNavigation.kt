@@ -30,9 +30,17 @@ import pe.edu.pucp.melanomaacral.ui.screens.patient.PatientScreen
 import pe.edu.pucp.melanomaacral.ui.screens.patients.PatientsScreen
 import pe.edu.pucp.melanomaacral.ui.screens.referral.ReferralScreen
 import pe.edu.pucp.melanomaacral.ui.screens.result.ResultScreen
+import pe.edu.pucp.melanomaacral.ui.screens.access.AuditLogScreen
+import pe.edu.pucp.melanomaacral.ui.screens.consent.ConsentScreen
+import pe.edu.pucp.melanomaacral.ui.screens.decision.DecisionScreen
+import pe.edu.pucp.melanomaacral.domain.model.ManagementAction
 
 @Composable
-fun AppNavigation(modifier: Modifier = Modifier) {
+fun AppNavigation(
+    modifier: Modifier = Modifier,
+    currentUser: String? = null,
+    onLogout: () -> Unit = {}
+) {
     // La pila de navegación: una lista de rutas. La última es la pantalla visible.
     // Navegar = agregar a la lista; volver = quitar el último elemento.
     val backStack = rememberNavBackStack(HomeRoute)
@@ -50,6 +58,9 @@ fun AppNavigation(modifier: Modifier = Modifier) {
     fun goBack() {
         backStack.removeLastOrNull()
     }
+
+    // RF-17: toda captura nueva pasa antes por el consentimiento (P-12); si ya está registrado, sigue directo.
+    fun startCapture(lesionId: String) = goTo(ConsentRoute(lesionId))
 
     // Al terminar una evaluación, descarta las pantallas del flujo
     // (captura, calidad, datos, resultado) y vuelve a la lesión.
@@ -89,7 +100,10 @@ fun AppNavigation(modifier: Modifier = Modifier) {
             entry<HomeRoute> {
                 HomeScreen(
                     onOpenPatients = { goTo(PatientsRoute) },
-                    onOpenAbout = { goTo(AboutRoute) }
+                    onOpenAbout = { goTo(AboutRoute) },
+                    currentUser = currentUser,
+                    onOpenAuditLog = { goTo(AuditLogRoute) },
+                    onLogout = onLogout
                 )
             }
             entry<PatientsRoute> {
@@ -106,7 +120,7 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                     // así "Atrás" desde la captura vuelve a la lesión.
                     onLesionCreated = { lesionId ->
                         goTo(LesionRoute(lesionId))
-                        goTo(ObtainImageRoute(lesionId))
+                        startCapture(lesionId)
                     },
                     onBack = { goBack() }
                 )
@@ -114,7 +128,7 @@ fun AppNavigation(modifier: Modifier = Modifier) {
             entry<LesionRoute> { route ->
                 LesionScreen(
                     lesionId = route.lesionId,
-                    onNewCapture = { goTo(ObtainImageRoute(route.lesionId)) },
+                    onNewCapture = { startCapture(route.lesionId) },
                     // Retoma la evaluación pendiente en el paso donde quedó.
                     onResume = { draft ->
                         goTo(ObtainImageRoute(route.lesionId))
@@ -153,8 +167,31 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                     onScheduleFollowUp = { goTo(ScheduleFollowUpRoute(route.lesionId)) },
                     onReferral = { goTo(ReferralRoute(route.lesionId)) },
                     onShowLimitations = { goTo(AboutRoute) },
+                    onDecide = { evaluationId, suggested -> goTo(DecisionRoute(evaluationId, suggested.name)) },
                     onBack = { goBack() }
                 )
+            }
+            entry<ConsentRoute> { route ->
+                ConsentScreen(
+                    lesionId = route.lesionId,
+                    // Con consentimiento, la pantalla se reemplaza por la captura (Atrás vuelve a la lesión).
+                    onConsented = {
+                        if (backStack.lastOrNull() == route) backStack.removeLastOrNull()
+                        goTo(ObtainImageRoute(route.lesionId))
+                    },
+                    onBack = { goBack() }
+                )
+            }
+            entry<DecisionRoute> { route ->
+                DecisionScreen(
+                    evaluationId = route.evaluationId,
+                    suggested = ManagementAction.valueOf(route.suggested),
+                    onSaved = { goBack(); notify("Decisión registrada.") },
+                    onBack = { goBack() }
+                )
+            }
+            entry<AuditLogRoute> {
+                AuditLogScreen(onBack = { goBack() })
             }
             entry<ScheduleFollowUpRoute> { route ->
                 ScheduleFollowUpScreen(

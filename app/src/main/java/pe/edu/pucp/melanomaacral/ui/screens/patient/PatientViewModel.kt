@@ -16,6 +16,7 @@ import pe.edu.pucp.melanomaacral.domain.model.forLesion
 import pe.edu.pucp.melanomaacral.domain.repository.DraftRepository
 import pe.edu.pucp.melanomaacral.domain.repository.RecordsRepository
 import pe.edu.pucp.melanomaacral.ui.appContainer
+import pe.edu.pucp.melanomaacral.domain.model.AuditAction
 import java.time.LocalDate
 
 // Lo que la lista muestra de cada lesión.
@@ -38,8 +39,11 @@ data class PatientUiState(
 class PatientViewModel(
     private val patientId: String,
     private val records: RecordsRepository,
-    private val drafts: DraftRepository
+    private val drafts: DraftRepository,
+    private val audit: suspend (AuditAction, String) -> Unit = { _, _ -> }
 ) : ViewModel() {
+
+    init { viewModelScope.launch { audit(AuditAction.VIEW, "Paciente $patientId") } }
 
     val uiState: StateFlow<PatientUiState> =
         combine(records.lesions, records.evaluations, drafts.drafts) { lesions, evaluations, pending ->
@@ -65,7 +69,9 @@ class PatientViewModel(
     // Crea la lesión y entrega su ID a quien la pidió (la pantalla, para navegar).
     fun createLesion(onCreated: (String) -> Unit) {
         viewModelScope.launch {
-            onCreated(records.createLesion(patientId))
+            val id = records.createLesion(patientId)
+            audit(AuditAction.CREATE, "Lesión $id de $patientId")
+            onCreated(id)
         }
     }
 
@@ -73,7 +79,7 @@ class PatientViewModel(
         fun factory(patientId: String): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val container = appContainer()
-                PatientViewModel(patientId, container.recordsRepository, container.draftRepository)
+                PatientViewModel(patientId, container.recordsRepository, container.draftRepository, container.accessRepository::audit)
             }
         }
     }
