@@ -40,7 +40,9 @@ data class CaptureSlot(
     val image: LesionImage? = null,
     val report: QualityReport? = null,
     val isChecking: Boolean = false,
-    val checkError: String? = null
+    val checkError: String? = null,
+    // La foto de la zona no se revisa: solo sirve para ubicar la lesión (RF-02).
+    val skipped: Boolean = false
 ) {
     val hasImage: Boolean get() = image != null
     val qualityOk: Boolean get() = report?.allOk == true
@@ -108,6 +110,9 @@ class ObtainImageViewModel(
     }
 
     // Las dos fotos clínicas se revisan como foto clínica; la dermoscópica, con encuadre.
+    // Solo se revisa la calidad del primer plano y de la imagen dermoscópica; la foto de la zona no se analiza.
+    private fun reviewed(step: CaptureStep) = step != CaptureStep.CONTEXT
+
     private fun kindOf(step: CaptureStep) = if (step == CaptureStep.DERMOSCOPIC) ImageKind.DERMOSCOPIC else ImageKind.CONTEXT
 
     private val local = MutableStateFlow(Local())
@@ -141,7 +146,7 @@ class ObtainImageViewModel(
                     draft.stage == DraftStage.CLOSE_UP || draft.closeUp == null -> CaptureStep.CLOSE_UP
                     else -> CaptureStep.DERMOSCOPIC
                 },
-                context = CaptureSlot(draft.context, draft.contextReport),
+                context = CaptureSlot(draft.context, skipped = draft.context != null),
                 closeUp = CaptureSlot(draft.closeUp, draft.closeUpReport),
                 dermoscopic = CaptureSlot(draft.dermoscopic, draft.dermoscopicReport)
             )
@@ -149,7 +154,7 @@ class ObtainImageViewModel(
         // Fotos restauradas sin revisión de calidad guardada (por ejemplo, al editar una evaluación): se revisan de nuevo.
         for (step in CaptureStep.entries) {
             val slot = local.value.slot(step)
-            if (slot.image != null && slot.report == null && slot.checkError == null) recheck(step, slot.image)
+            if (slot.image != null && slot.report == null && slot.checkError == null && reviewed(step)) recheck(step, slot.image)
         }
     }
 
@@ -270,6 +275,11 @@ class ObtainImageViewModel(
             // La foto que se reemplaza se borra (no queda ningún archivo huérfano), salvo que la use una evaluación
             // guardada (por ejemplo, al editar una evaluación).
             local.value.slot(step).image?.let { if (!records.isImageSaved(it.uri)) storage.delete(it) }
+            if (!reviewed(step)) {
+                local.update { it.withSlot(step, CaptureSlot(image = image, skipped = true)).copy(isProcessing = false) }
+                saveDraft()
+                return@launch
+            }
             local.update { it.withSlot(step, CaptureSlot(image = image, isChecking = true)).copy(isProcessing = false) }
             saveDraft()
 

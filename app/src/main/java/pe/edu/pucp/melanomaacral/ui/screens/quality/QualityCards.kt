@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -45,11 +46,12 @@ import pe.edu.pucp.melanomaacral.ui.theme.semantic
 
 // Veredicto de una foto, arriba y grande: lo primero que se lee.
 @Composable
-fun QualityVerdictCard(ok: Boolean, isContext: Boolean, modifier: Modifier = Modifier) {
+// advisory: en el primer plano, una foto con observaciones no se presenta como un error, sino como un consejo.
+fun QualityVerdictCard(ok: Boolean, isContext: Boolean, modifier: Modifier = Modifier, advisory: Boolean = false) {
     val sem = MaterialTheme.semantic
     val scheme = MaterialTheme.colorScheme
-    val container = if (ok) sem.qualityOk.container else scheme.errorContainer
-    val content = if (ok) sem.qualityOk.onContainer else scheme.onErrorContainer
+    val container = when { ok -> sem.qualityOk.container; advisory -> sem.neutral.container; else -> scheme.errorContainer }
+    val content = when { ok -> sem.qualityOk.onContainer; advisory -> sem.neutral.onContainer; else -> scheme.onErrorContainer }
     Card(
         colors = CardDefaults.cardColors(containerColor = container, contentColor = content),
         shape = MaterialTheme.shapes.large,
@@ -61,19 +63,20 @@ fun QualityVerdictCard(ok: Boolean, isContext: Boolean, modifier: Modifier = Mod
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                if (ok) Icons.Filled.CheckCircle else Icons.Filled.Warning,
+                when { ok -> Icons.Filled.CheckCircle; advisory -> Icons.Filled.Info; else -> Icons.Filled.Warning },
                 contentDescription = null,
                 modifier = Modifier.size(Size.iconHero)
             )
             Column(verticalArrangement = Arrangement.spacedBy(Space.xs)) {
                 Text(
-                    if (ok) "Calidad adecuada" else "Calidad insuficiente",
+                    when { ok -> "Calidad adecuada"; advisory -> "Puede mejorar"; else -> "Calidad insuficiente" },
                     style = MaterialTheme.typography.headlineSmall
                 )
                 Text(
                     when {
                         ok && isContext -> "La foto clínica sirve. Sigue con la imagen dermoscópica."
                         ok -> "La imagen sirve para continuar."
+                        advisory -> "La foto se puede usar. Si puedes, repítela siguiendo lo que se indica abajo."
                         else -> "Una imagen de mala calidad puede dar un resultado poco confiable. Se recomienda repetirla."
                     },
                     style = MaterialTheme.typography.bodyMedium
@@ -109,8 +112,11 @@ fun PhotoQualityCard(
     image: LesionImage,
     report: QualityReport?,
     showFraming: Boolean,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    clinical: Boolean = false
 ) {
+    // Umbrales con que se revisó esta foto: los de la foto clínica o los de la imagen dermoscópica.
+    val t = if (clinical) ImageQualityAnalyzer.CLINICAL else ImageQualityAnalyzer.DERMOSCOPIC
     var showMeasures by rememberSaveable(title) { mutableStateOf(false) }
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -132,15 +138,15 @@ fun PhotoQualityCard(
             CheckRow("Tamaño de la imagen", report.resolutionOk, "Imagen muy pequeña. Usa una imagen de mayor tamaño.")
             val measures = listOfNotNull(
                 report.sharpness?.let {
-                    "Nitidez: ${it.fmt1()} (mínimo ${ImageQualityAnalyzer.MIN_SHARPNESS.fmt1()}). Cuánto contraste hay en los bordes; " +
+                    "Nitidez: ${it.fmt1()} (mínimo ${t.minSharpness.fmt1()}). Cuánto contraste hay en los bordes; " +
                         "escala continua, más alto es más nítido. Las dermatoscopias dan valores bajos porque la piel es lisa."
                 },
                 report.sharpnessDenoised?.let {
-                    "Nitidez sin ruido: ${it.fmt1()} (mínimo ${ImageQualityAnalyzer.MIN_SHARPNESS_DENOISED.fmt1()}). La misma medida tras " +
+                    "Nitidez sin ruido: ${it.fmt1()} (mínimo ${t.minSharpnessDenoised.fmt1()}). La misma medida tras " +
                         "suavizar el grano de la cámara; evita que una foto movida pase por nítida."
                 },
                 report.meanLuma?.let {
-                    "Brillo: ${it.toInt()} (aceptable de ${ImageQualityAnalyzer.MIN_MEAN_LUMA.toInt()} a ${ImageQualityAnalyzer.MAX_MEAN_LUMA.toInt()}; " +
+                    "Brillo: ${it.toInt()} (aceptable de ${t.minMeanLuma.toInt()} a ${t.maxMeanLuma.toInt()}; " +
                         "0 es negro y 255 blanco)."
                 }
             )
@@ -154,7 +160,9 @@ fun PhotoQualityCard(
                             Text("• $it", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         Text(
-                            "Los mínimos se calibraron con 600 imágenes dermatoscópicas de los datos de la tesis: solo el 2 % " +
+                            if (clinical) "Los umbrales de la foto clínica se calibraron con fotos tomadas con la cámara del teléfono. " +
+                                "Si la foto se ve bien, puedes continuar."
+                            else "Los mínimos se calibraron con 600 imágenes dermatoscópicas de los datos de la tesis: solo el 2 % " +
                                 "quedaba por debajo. Si la foto se ve bien, puedes continuar de todos modos.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant

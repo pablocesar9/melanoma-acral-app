@@ -172,7 +172,9 @@ fun ObtainImageContent(
                     primaryLabel = nextLabel, onPrimary = onNext, enabled = false,
                     disabledReason = "Revisando la calidad de la foto…"
                 )
-                slot.qualityOk -> BottomActionBar(
+                // Foto de la zona (no se revisa), calidad adecuada, o primer plano con observaciones:
+                // se sigue adelante y repetir la foto es la opción secundaria.
+                slot.skipped || slot.qualityOk || (step == CaptureStep.CLOSE_UP && slot.report != null) -> BottomActionBar(
                     primaryLabel = nextLabel,
                     onPrimary = onNext,
                     primaryIcon = Icons.AutoMirrored.Filled.ArrowForward,
@@ -228,15 +230,22 @@ fun ObtainImageContent(
                 val image = slot.image!!
                 val title = step.title()
                 when {
+                    slot.skipped -> NoticeCard(
+                        "Foto de la zona",
+                        "Esta foto sirve para ubicar la lesión y no se analiza. Revisa que se vea la zona del cuerpo y la lesión señalada.",
+                        NoticeKind.Info
+                    )
                     slot.isChecking -> QualityCheckingCard()
-                    slot.report != null -> QualityVerdictCard(ok = slot.qualityOk, isContext = isClinical)
+                    slot.report != null -> QualityVerdictCard(
+                        ok = slot.qualityOk, isContext = isClinical, advisory = step == CaptureStep.CLOSE_UP
+                    )
                     else -> NoticeCard(
                         "No se pudo revisar la imagen",
                         slot.checkError ?: "Error desconocido. Puedes repetir la foto.",
                         NoticeKind.Error
                     )
                 }
-                PhotoQualityCard(title = title, image = image, report = slot.report, showFraming = !isClinical)
+                PhotoQualityCard(title = title, image = image, report = slot.report, showFraming = !isClinical, clinical = isClinical)
                 TextButton(onClick = onPickFromGallery) { Text("Elegir otra de la galería") }
                 slot.report?.let { QualityMethodNotice(it) }
             }
@@ -320,6 +329,7 @@ private fun androidx.compose.material3.SingleChoiceSegmentedButtonRowScope.StepS
 ) {
     val status = when {
         !slot.hasImage -> "sin foto"
+        slot.skipped -> "foto obtenida"
         slot.isChecking -> "revisando"
         slot.qualityOk -> "calidad adecuada"
         else -> "calidad insuficiente"
@@ -332,7 +342,7 @@ private fun androidx.compose.material3.SingleChoiceSegmentedButtonRowScope.StepS
         icon = {
             when {
                 !slot.hasImage || slot.isChecking -> SegmentedButtonDefaults.Icon(active = selected)
-                slot.qualityOk -> Icon(Icons.Filled.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp))
+                slot.skipped || slot.qualityOk -> Icon(Icons.Filled.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp))
                 else -> Icon(Icons.Filled.Warning, contentDescription = null, modifier = Modifier.size(18.dp))
             }
         },

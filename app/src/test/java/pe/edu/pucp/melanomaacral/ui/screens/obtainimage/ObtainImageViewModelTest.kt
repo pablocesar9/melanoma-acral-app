@@ -90,16 +90,17 @@ class ObtainImageViewModelTest {
         assertEquals(CaptureStep.CONTEXT, vm.uiState.value.step)
     }
 
-    @Test fun fotoClinica_seRevisaEnSeguidaYSeQuedaEnElPaso1() {
+    // La foto de la zona solo sirve para ubicar la lesión: no se revisa su calidad.
+    @Test fun fotoDeLaZona_noSeRevisaYSeQuedaEnElPaso1() {
         quality.nextOk = false
         vm.onGalleryUri("content://x")
 
         val state = vm.uiState.value
         assertEquals(CaptureStep.CONTEXT, state.step)
         assertNotNull(state.context.image)
-        assertNotNull(state.context.report)
-        assertFalse(state.context.qualityOk)
-        assertEquals(ImageKind.CONTEXT, quality.checked.single().second)
+        assertNull(state.context.report)
+        assertTrue(state.context.skipped)
+        assertTrue(quality.checked.isEmpty())
     }
 
     @Test fun sinFotoClinica_noSePasaAlPrimerPlanoNiALaDermoscopica() {
@@ -188,13 +189,14 @@ class ObtainImageViewModelTest {
         val draft = drafts.get("LES-001")
         assertNotNull(draft)
         assertEquals(DraftStage.DERMOSCOPIC, draft!!.stage)
-        assertNotNull(draft.contextReport)
+        assertNull(draft.contextReport)
         assertNotNull(draft.closeUpReport)
 
         collector.cancel()
         val reopened = newViewModel()
         assertEquals(CaptureStep.DERMOSCOPIC, reopened.uiState.value.step)
         assertEquals(draft.context, reopened.uiState.value.context.image)
+        assertTrue(reopened.uiState.value.context.skipped)
     }
 
     @Test fun sinFotos_noSeGuardaNingunPendiente() = runBlocking {
