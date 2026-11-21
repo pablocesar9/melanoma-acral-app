@@ -36,7 +36,7 @@ class RoomRecordsRepositoryTest {
     fun setUp() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).allowMainThreadQueries().build()
-        repo = RoomRecordsRepository(db.recordsDao())
+        repo = RoomRecordsRepository(db.recordsDao(), db)
     }
 
     @After
@@ -47,6 +47,23 @@ class RoomRecordsRepositoryTest {
         it.copy(clinicalData = it.clinicalData.copy(
             ageYears = 47, sex = Sex.MALE, hasBleeding = true, hasItching = true, hasSkinCancerHistory = true
         ))
+    }
+
+    // RF-10: corregir el código mueve las lesiones y el consentimiento, conserva la fecha de alta y borra el código anterior.
+    @Test
+    fun corregirCodigo_mueveLesionesYConsentimiento() = runBlocking {
+        repo.createPatient("PAC-100")
+        val lesion = repo.createLesion("PAC-100")
+        db.governanceDao().upsertConsent(ConsentEntity("PAC-100", "ACCEPTED", 1L, "usuario", 1L))
+        val alta = repo.patients.first().single().createdOn
+
+        repo.renamePatient("PAC-100", "HC-200")
+
+        assertEquals(listOf("HC-200"), repo.patients.first().map { it.id })
+        assertEquals(alta, repo.patients.first().single().createdOn)
+        assertEquals("HC-200", repo.lesions.first().single { it.id == lesion }.patientId)
+        assertNull(db.governanceDao().consent("PAC-100"))
+        assertNotNull(db.governanceDao().consent("HC-200"))
     }
 
     @Test

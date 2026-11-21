@@ -1,5 +1,7 @@
 package pe.edu.pucp.melanomaacral.data.local
 
+import androidx.room.RoomDatabase
+import androidx.room.withTransaction
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import pe.edu.pucp.melanomaacral.domain.model.CapturedImages
@@ -13,7 +15,7 @@ import pe.edu.pucp.melanomaacral.domain.repository.RecordsRepository
 import java.time.LocalDate
 
 // Registro persistente (reemplaza a InMemoryRecordsRepository). Funciona sin conexión (RNF-01).
-class RoomRecordsRepository(private val dao: RecordsDao) : RecordsRepository {
+class RoomRecordsRepository(private val dao: RecordsDao, private val db: RoomDatabase? = null) : RecordsRepository {
 
     override val patients: Flow<List<Patient>> = dao.observePatients().map { l -> l.map { it.toDomain() } }
     override val lesions: Flow<List<Lesion>> = dao.observeLesions().map { l -> l.map { it.toDomain() } }
@@ -21,6 +23,18 @@ class RoomRecordsRepository(private val dao: RecordsDao) : RecordsRepository {
 
     override suspend fun createPatient(patientId: String) {
         dao.insertPatient(PatientEntity(patientId, LocalDate.now().toEpochDay()))
+    }
+
+    // Todo o nada: el paciente con el código nuevo, sus lesiones y su consentimiento se mueven en una sola transacción.
+    override suspend fun renamePatient(oldId: String, newId: String) {
+        val move: suspend () -> Unit = {
+            val old = dao.patient(oldId) ?: error("No existe el paciente $oldId")
+            dao.insertPatient(PatientEntity(newId, old.createdOnEpochDay))
+            dao.moveLesions(oldId, newId)
+            dao.moveConsent(oldId, newId)
+            dao.deletePatient(oldId)
+        }
+        if (db != null) db.withTransaction { move() } else move()
     }
 
     override suspend fun createLesion(patientId: String): String {

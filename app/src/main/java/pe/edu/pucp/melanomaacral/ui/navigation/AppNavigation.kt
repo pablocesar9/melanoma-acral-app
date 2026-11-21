@@ -122,7 +122,12 @@ fun AppNavigation(
                         goTo(LesionRoute(lesionId))
                         startCapture(lesionId)
                     },
-                    onBack = { goBack() }
+                    onBack = { goBack() },
+                    // Código corregido: la ficha se vuelve a abrir con el código nuevo.
+                    onRenamed = { newId ->
+                        goBack()
+                        goTo(PatientRoute(newId))
+                    }
                 )
             }
             entry<LesionRoute> { route ->

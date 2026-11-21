@@ -21,6 +21,18 @@ interface RecordsDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertPatient(patient: PatientEntity)
 
+    @Query("SELECT * FROM patients WHERE id = :id")
+    suspend fun patient(id: String): PatientEntity?
+
+    @Query("UPDATE lesions SET patientId = :newId WHERE patientId = :oldId")
+    suspend fun moveLesions(oldId: String, newId: String)
+
+    @Query("UPDATE consents SET patientId = :newId WHERE patientId = :oldId")
+    suspend fun moveConsent(oldId: String, newId: String)
+
+    @Query("DELETE FROM patients WHERE id = :id")
+    suspend fun deletePatient(id: String)
+
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertLesion(lesion: LesionEntity)
 

@@ -76,7 +76,7 @@ class AppContainer(context: Context) {
     fun prepareModel(image: LesionImage) {
         appScope.launch { runCatching { classifierRepository.classify(image) } }
     }
-    val recordsRepository: RecordsRepository by lazy { RoomRecordsRepository(database.recordsDao()) }
+    val recordsRepository: RecordsRepository by lazy { RoomRecordsRepository(database.recordsDao(), database) }
 
     // Uso con pacientes: acceso por usuario y registro de acciones (RNF-12), consentimiento (RF-17)
     // y decisión del profesional (RF-23).

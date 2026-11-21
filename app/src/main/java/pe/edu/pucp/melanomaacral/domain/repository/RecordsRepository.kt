@@ -21,6 +21,12 @@ interface RecordsRepository {
 
     suspend fun createPatient(patientId: String)
 
+    // Corrige el código de un paciente (RF-10): sus lesiones y su consentimiento pasan al código nuevo, y se conserva su
+    // fecha de alta. La validación del código nuevo la hace quien llama.
+    suspend fun renamePatient(oldId: String, newId: String) {
+        throw UnsupportedOperationException("Este registro no permite corregir el código del paciente")
+    }
+
     // Devuelve el ID de la lesión creada.
     suspend fun createLesion(patientId: String): String
 

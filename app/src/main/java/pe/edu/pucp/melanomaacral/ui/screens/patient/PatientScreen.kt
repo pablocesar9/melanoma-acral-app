@@ -12,6 +12,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.AddCircle
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextButton
 import androidx.compose.material.icons.filled.Healing
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -37,6 +43,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import pe.edu.pucp.melanomaacral.domain.model.AcralLocation
 import pe.edu.pucp.melanomaacral.ui.components.AppTopBar
 import pe.edu.pucp.melanomaacral.ui.formatted
+import pe.edu.pucp.melanomaacral.ui.message
 import pe.edu.pucp.melanomaacral.ui.label
 import pe.edu.pucp.melanomaacral.ui.theme.MelanomaAcralTheme
 import java.time.LocalDate
@@ -48,14 +55,63 @@ fun PatientScreen(
     onOpenLesion: (String) -> Unit,
     onLesionCreated: (String) -> Unit,
     onBack: () -> Unit,
+    onRenamed: (String) -> Unit = {},
     viewModel: PatientViewModel = viewModel(factory = PatientViewModel.factory(patientId))
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val rename by viewModel.renameState.collectAsStateWithLifecycle()
     PatientContent(
         uiState = uiState,
         onOpenLesion = onOpenLesion,
         onNewLesion = { viewModel.createLesion(onCreated = onLesionCreated) },
-        onBack = onBack
+        onBack = onBack,
+        onEditCode = viewModel::openRename
+    )
+    if (rename.isOpen) {
+        RenamePatientDialog(
+            state = rename,
+            onIdChange = viewModel::onRenameTextChange,
+            onConfirm = { viewModel.confirmRename(onRenamed) },
+            onDismiss = viewModel::dismissRename
+        )
+    }
+}
+
+// Corregir el código del paciente (por ejemplo, si se escribió mal). La corrección queda en el registro de acciones.
+@Composable
+private fun RenamePatientDialog(
+    state: RenamePatientState,
+    onIdChange: (String) -> Unit,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(Icons.Filled.Edit, contentDescription = null) },
+        title = { Text("Corregir código") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(Space.m)) {
+                Text(
+                    "Usa el código con el que tu establecimiento identifica al paciente. No escribas nombre ni número de " +
+                        "documento (DNI). Sus lesiones y evaluaciones se mantienen, y la corrección queda en el registro de acciones.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                val problem = state.error?.message() ?: state.failure
+                OutlinedTextField(
+                    value = state.idText,
+                    onValueChange = onIdChange,
+                    label = { Text("Código del paciente") },
+                    singleLine = true,
+                    isError = problem != null,
+                    leadingIcon = if (problem != null) {
+                        { Icon(Icons.Filled.ErrorOutline, contentDescription = "Error") }
+                    } else null,
+                    supportingText = { Text(problem ?: "Por ejemplo: HC-004512") }
+                )
+            }
+        },
+        confirmButton = { TextButton(onClick = onConfirm) { Text("Guardar") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
     )
 }
 
@@ -65,11 +121,16 @@ fun PatientContent(
     onOpenLesion: (String) -> Unit,
     onNewLesion: () -> Unit,
     onBack: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onEditCode: () -> Unit = {}
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        topBar = { AppTopBar(title = "Paciente ${uiState.patientId}", onBack = onBack, subtitle = "Lesiones en seguimiento") },
+        topBar = {
+            AppTopBar(title = "Paciente ${uiState.patientId}", onBack = onBack, subtitle = "Lesiones en seguimiento") {
+                IconButton(onClick = onEditCode) { Icon(Icons.Filled.Edit, contentDescription = "Corregir código del paciente") }
+            }
+        },
         bottomBar = {
             BottomActionBar(
                 primaryLabel = "Nueva lesión",

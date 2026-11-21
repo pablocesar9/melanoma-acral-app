@@ -29,6 +29,11 @@ class InMemoryRecordsRepository(today: LocalDate = LocalDate.now()) : RecordsRep
         _patients.update { it + Patient(id = patientId, createdOn = LocalDate.now()) }
     }
 
+    override suspend fun renamePatient(oldId: String, newId: String) {
+        _patients.update { l -> l.map { if (it.id == oldId) it.copy(id = newId) else it } }
+        _lesions.update { l -> l.map { if (it.patientId == oldId) it.copy(patientId = newId) else it } }
+    }
+
     override suspend fun createLesion(patientId: String): String {
         val id = "LES-" + (_lesions.value.size + 1).toString().padStart(3, '0')
         _lesions.update { it + Lesion(id = id, patientId = patientId, nextFollowUp = null) }
