@@ -15,6 +15,8 @@ import pe.edu.pucp.melanomaacral.domain.repository.AccessRepository
 import pe.edu.pucp.melanomaacral.domain.repository.ConsentRepository
 import pe.edu.pucp.melanomaacral.domain.repository.DecisionRepository
 import pe.edu.pucp.melanomaacral.data.files.AndroidImageStorage
+import pe.edu.pucp.melanomaacral.data.files.KeyVault
+import pe.edu.pucp.melanomaacral.data.files.SecureImages
 import pe.edu.pucp.melanomaacral.data.notifications.WorkManagerReminderScheduler
 import pe.edu.pucp.melanomaacral.data.files.FileDraftRepository
 import pe.edu.pucp.melanomaacral.data.files.HeuristicImageQualityRepository
@@ -35,7 +37,14 @@ import pe.edu.pucp.melanomaacral.domain.repository.RecordsRepository
 // Inyección de dependencias manual (plan, sección 3.2): aquí se decide qué
 // implementación usa la app. Pasar de una falsa a una real es cambiar una línea.
 class AppContainer(context: Context) {
-    private val database: AppDatabase by lazy { AppDatabase.create(context) }
+    // RNF-05: la base de datos (SQLCipher) y las imágenes (AES-GCM) se cifran con claves del Keystore de Android.
+    private val database: AppDatabase by lazy {
+        AppDatabase.create(context, KeyVault.databasePassphraseHex(context.noBackupFilesDir))
+    }
+
+    init {
+        SecureImages.key = KeyVault.imageKey()
+    }
 
     val imageStorage: ImageStorage = AndroidImageStorage(context)
     // Modelo final B0 en el teléfono (fase 4): una sola inferencia da la probabilidad y el Grad-CAM.

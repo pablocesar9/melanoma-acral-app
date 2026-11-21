@@ -54,10 +54,10 @@ private suspend fun loadScaled(path: String, maxSidePx: Int): ImageBitmap? = wit
     val file = File(path)
     if (!file.isFile) return@withContext null
     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-    BitmapFactory.decodeFile(path, bounds)
+    pe.edu.pucp.melanomaacral.data.files.SecureImages.decodeFile(path, bounds)
     if (bounds.outWidth <= 0) return@withContext null
     val options = BitmapFactory.Options().apply {
         inSampleSize = ImageScaling.sampleSize(bounds.outWidth, bounds.outHeight, maxSidePx)
     }
-    BitmapFactory.decodeFile(path, options)?.asImageBitmap()
+    pe.edu.pucp.melanomaacral.data.files.SecureImages.decodeFile(path, options)?.asImageBitmap()
 }

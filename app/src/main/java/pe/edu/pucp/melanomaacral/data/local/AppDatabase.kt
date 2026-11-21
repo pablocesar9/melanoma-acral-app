@@ -50,9 +50,17 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        fun create(context: Context): AppDatabase =
-            Room.databaseBuilder(context.applicationContext, AppDatabase::class.java, NAME)
+        // RNF-05: con passphrase, la base de datos se abre cifrada con SQLCipher; si existía una sin cifrar
+        // (versiones anteriores), se cifra una sola vez conservando todos los registros.
+        fun create(context: Context, passphrase: ByteArray? = null): AppDatabase {
+            val builder = Room.databaseBuilder(context.applicationContext, AppDatabase::class.java, NAME)
                 .addMigrations(MIGRATION_1_2)
-                .build()
+            if (passphrase != null) {
+                System.loadLibrary("sqlcipher")
+                DatabaseEncryption.encryptIfPlain(context.getDatabasePath(NAME), passphrase)
+                builder.openHelperFactory(net.zetetic.database.sqlcipher.SupportOpenHelperFactory(passphrase))
+            }
+            return builder.build()
+        }
     }
 }

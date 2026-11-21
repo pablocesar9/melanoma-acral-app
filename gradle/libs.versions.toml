@@ -11,6 +11,7 @@ composeBom = "2026.02.01"
 nav3Core = "1.2.0"
 kotlinxSerializationCore = "1.9.0"
 room = "2.8.5"
+sqlcipher = "4.6.1"
 ksp = "2.3.14"
 coroutines = "1.10.2"
 robolectric = "4.16.1"
@@ -51,6 +52,7 @@ androidx-room-runtime = { group = "androidx.room", name = "room-runtime", versio
 androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 androidx-room-testing = { group = "androidx.room", name = "room-testing", version.ref = "room" }
+sqlcipher-android = { group = "net.zetetic", name = "sqlcipher-android", version.ref = "sqlcipher" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
 robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
 androidx-test-core = { module = "androidx.test:core", version.ref = "testCore" }

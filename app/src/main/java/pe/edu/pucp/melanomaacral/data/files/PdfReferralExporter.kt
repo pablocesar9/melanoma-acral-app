@@ -94,16 +94,16 @@ class PdfReferralExporter(
     private fun decode(path: String, side: Int = IMAGE_SIDE_PX): Bitmap? {
         if (!File(path).isFile) return null
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        BitmapFactory.decodeFile(path, bounds)
+        SecureImages.decodeFile(path, bounds)
         if (bounds.outWidth <= 0) return null
         val o = BitmapFactory.Options().apply { inSampleSize = ImageScaling.sampleSize(bounds.outWidth, bounds.outHeight, side) }
-        return BitmapFactory.decodeFile(path, o)
+        return SecureImages.decodeFile(path, o)
     }
 
     private fun copy(path: String, dst: File): File? {
         val src = File(path)
         if (!src.isFile) return null
-        src.copyTo(dst, overwrite = true)
+        SecureImages.copyPlain(src, dst)   // copia en claro, solo en la caché que se comparte
         return dst
     }
 

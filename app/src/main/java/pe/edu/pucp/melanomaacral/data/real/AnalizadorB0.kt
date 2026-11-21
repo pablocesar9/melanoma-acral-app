@@ -67,8 +67,8 @@ class AnalizadorB0(private val context: Context, private val runtime: Runtime = 
     // RGB de 8 bits con la orientación EXIF aplicada (las fotos guardadas por la app ya vienen enderezadas).
     private fun leerRgb(ruta: String): PreprocesadoB0.Rgb {
         val opciones = BitmapFactory.Options().apply { inPreferredConfig = Bitmap.Config.ARGB_8888; inScaled = false }
-        var bmp = BitmapFactory.decodeFile(ruta, opciones) ?: error("No se pudo leer la imagen $ruta")
-        val giro = when (ExifInterface(ruta).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)) {
+        var bmp = pe.edu.pucp.melanomaacral.data.files.SecureImages.decodeFile(ruta, opciones) ?: error("No se pudo leer la imagen $ruta")
+        val giro = when (pe.edu.pucp.melanomaacral.data.files.SecureImages.exifOrientation(ruta)) {
             ExifInterface.ORIENTATION_ROTATE_90 -> 90f
             ExifInterface.ORIENTATION_ROTATE_180 -> 180f
             ExifInterface.ORIENTATION_ROTATE_270 -> 270f

@@ -20,11 +20,11 @@ class HeuristicImageQualityRepository : ImageQualityRepository {
         require(file.isFile) { "No se encuentra la imagen" }
 
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        BitmapFactory.decodeFile(file.path, bounds)
+        SecureImages.decodeFile(file.path, bounds)
         val options = BitmapFactory.Options().apply {
             inSampleSize = ImageScaling.sampleSize(bounds.outWidth, bounds.outHeight, ImageQualityAnalyzer.ANALYSIS_SIDE_PX)
         }
-        val decoded = BitmapFactory.decodeFile(file.path, options)
+        val decoded = SecureImages.decodeFile(file.path, options)
             ?: throw IllegalArgumentException("No se pudo decodificar la imagen")
         // La nitidez depende de la escala: se lleva siempre al mismo lado mayor (inSampleSize
         // solo reduce por potencias de 2 y deja entre 512 y 1023 px).

@@ -48,17 +48,16 @@ class AndroidImageStorage(private val context: Context) : ImageStorage {
     // Decodifica reducida, corrige la orientación EXIF y reescribe como JPEG sin metadatos.
     private fun normalize(source: File, origin: ImageSource): LesionImage {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        BitmapFactory.decodeFile(source.path, bounds)
+        SecureImages.decodeFile(source.path, bounds)
         require(bounds.outWidth > 0 && bounds.outHeight > 0) { "El archivo no es una imagen válida" }
 
         val options = BitmapFactory.Options().apply {
             inSampleSize = ImageScaling.sampleSize(bounds.outWidth, bounds.outHeight, ImageStorage.MAX_SIDE_PX)
         }
-        var bitmap = BitmapFactory.decodeFile(source.path, options)
+        var bitmap = SecureImages.decodeFile(source.path, options)
             ?: throw IllegalArgumentException("No se pudo decodificar la imagen")
 
-        val orientation = ExifInterface(source.path)
-            .getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
+        val orientation = SecureImages.exifOrientation(source.path)
         val matrix = Matrix()
         when (orientation) {
             ExifInterface.ORIENTATION_ROTATE_90 -> matrix.postRotate(90f)
@@ -76,7 +75,8 @@ class AndroidImageStorage(private val context: Context) : ImageStorage {
         }
 
         val target = File(directory, "img-${UUID.randomUUID()}.jpg")
-        FileOutputStream(target).use { bitmap.compress(Bitmap.CompressFormat.JPEG, ImageStorage.JPEG_QUALITY, it) }
+        // RNF-05: la imagen normalizada se guarda cifrada (la foto cruda de la cámara se borra después).
+        SecureImages.writeJpeg(target, bitmap, ImageStorage.JPEG_QUALITY)
         val image = LesionImage(
             uri = target.path,
             source = origin,
