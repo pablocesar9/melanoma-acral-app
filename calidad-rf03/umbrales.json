@@ -1,0 +1,29 @@
+{
+  "umbrales_foto_clinica": {
+    "nitidez": 32.941,
+    "nitidez_suavizada": 3.629,
+    "brillo_min": 123.564,
+    "fraccion_oscura_max": 0.25,
+    "brillo_max": 156.872,
+    "fraccion_clara_max": 0.019,
+    "desv_centro_min": 8.0
+  },
+  "reglas": {
+    "nitidez": "punto medio entre la adecuada más cercana (42.135) y la borrosa más cercana más allá (23.746); detecta 5 de 5 en la tanda 1",
+    "nitidez_suavizada": "punto medio entre la adecuada más cercana (3.723) y la borrosa más cercana más allá (3.534); detecta 5 de 5 en la tanda 1",
+    "brillo_min": "punto medio entre la adecuada más cercana (124.116) y la oscura más cercana más allá (123.012); detecta 3 de 5 en la tanda 1",
+    "fraccion_oscura_max": "sin cambio: ninguna foto mala de la tanda 1 queda más allá de las adecuadas",
+    "brillo_max": "punto medio entre la adecuada más cercana (156.636) y la sobreexpuesta más cercana más allá (157.109); detecta 3 de 5 en la tanda 1",
+    "fraccion_clara_max": "punto medio entre la adecuada más cercana (0.000) y la sobreexpuesta más cercana más allá (0.038); detecta 4 de 5 en la tanda 1",
+    "desv_centro_min": "sin cambio: ninguna foto mala de la tanda 1 queda más allá de las adecuadas"
+  },
+  "umbrales_anteriores": {
+    "nitidez": 5.0,
+    "nitidez_suavizada": 1.9,
+    "brillo_min": 80.0,
+    "brillo_max": 200.0,
+    "fraccion_oscura_max": 0.25,
+    "fraccion_clara_max": 0.25,
+    "desv_centro_min": 8.0
+  }
+}

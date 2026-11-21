@@ -119,4 +119,37 @@ class ImageQualityAnalyzerTest {
         val r = ImageQualityAnalyzer.analyze(flat(120), w, h, 1000, 1000, checkFraming = false)
         assertTrue(r.framingOk)
     }
+
+    // Foto clínica: umbrales calibrados con fotos de la cámara del teléfono (2026-11-21). Una imagen con brillo medio de
+    // 110 pasa como dermoscópica, pero es oscura como foto clínica.
+    @Test
+    fun fotoClinica_usaSusPropiosUmbrales() {
+        val img = checker(50, 170)   // brillo medio 110, muchos bordes
+        val derm = ImageQualityAnalyzer.analyze(img, w, h, 1000, 1000)
+        val clin = ImageQualityAnalyzer.analyze(img, w, h, 1000, 1000, checkFraming = false,
+            thresholds = ImageQualityAnalyzer.CLINICAL)
+        assertTrue(derm.lightingOk)
+        assertEquals(LightingProblem.TOO_DARK, clin.lightingProblem)
+    }
+
+    // La foto clínica exige más nitidez que la dermoscópica: una imagen poco nítida pasa como dermoscópica y no
+    // como clínica.
+    @Test
+    fun fotoClinica_exigeMasNitidez() {
+        val rnd = java.util.Random(1)
+        val leve = IntArray(w * h) { (140 + rnd.nextGaussian() * 1.0).toInt().coerceIn(0, 255) }
+        val m = ImageQualityAnalyzer.measure(leve, w, h)
+        assertTrue(m.sharpness > ImageQualityAnalyzer.DERMOSCOPIC.minSharpness)
+        assertTrue(m.sharpness < ImageQualityAnalyzer.CLINICAL.minSharpness)
+    }
+
+    @Test
+    fun measure_coincideConAnalyze() {
+        val img = checker()
+        val m = ImageQualityAnalyzer.measure(img, w, h)
+        val r = ImageQualityAnalyzer.analyze(img, w, h, 1000, 1000)
+        assertEquals(m.sharpness, r.sharpness!!, 0f)
+        assertEquals(m.meanLuma, r.meanLuma!!, 0f)
+        assertEquals(m.sharpnessDenoised, r.sharpnessDenoised!!, 0f)
+    }
 }

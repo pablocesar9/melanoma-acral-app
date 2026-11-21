@@ -29,7 +29,7 @@ Los modelos (`app/src/main/assets/modelos/*.onnx` y `*.tflite`) no están en el 
 ## Pruebas
 
 - **Unitarias (JVM):** `./gradlew testDebugUnitTest`. Incluyen las reglas de recomendación, la persistencia, la revisión de calidad de la imagen, las capturas de pantalla y la paridad del preprocesado.
-- **En el teléfono:** `ModeloB0EnDispositivoTest` (latencia y paridad), `MigracionBaseDeDatosTest` y `RecordatorioNotificacionTest`. Se instalan y ejecutan con `adb`; no uses `connectedAndroidTest`, que desinstala la aplicación y borra sus datos.
+- **En el teléfono:** `ModeloB0EnDispositivoTest` (latencia y paridad), `MigracionBaseDeDatosTest`, `CifradoEnDispositivoTest` (cifrado de la base de datos y de las imágenes), `CalidadEnDispositivoTest` (medidas de calidad para calibrar RF-03) y `RecordatorioNotificacionTest`. Se instalan y ejecutan con `adb`; no uses `connectedAndroidTest`, que desinstala la aplicación y borra sus datos.
   ```bash
   ./gradlew assembleDebug assembleDebugAndroidTest
   adb install -r app/build/outputs/apk/debug/app-debug.apk
@@ -47,6 +47,7 @@ Los modelos (`app/src/main/assets/modelos/*.onnx` y `*.tflite`) no están en el 
 | `app/src/main/java/.../ui` | Pantallas, componentes y tema (Jetpack Compose y Material 3). |
 | `app/src/test` y `app/src/androidTest` | Pruebas unitarias y pruebas en el teléfono. |
 | `scripts/` | Descarga de los modelos de la Release. |
+| `calidad-rf03/` | Calibración de la revisión de calidad de la foto clínica (RF-03) con fotos del teléfono: medidas, reparto, regla y resultados (sin las fotos). |
 | `trazabilidad-r2/` | Anexo documental de trazabilidad de los requisitos (Anexo J de la tesis): 32 requisitos, 416 pares requisito–fuente con su cita textual. |
 
 ## Licencia

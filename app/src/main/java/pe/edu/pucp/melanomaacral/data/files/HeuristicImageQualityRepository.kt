@@ -16,7 +16,20 @@ import java.io.File
 class HeuristicImageQualityRepository : ImageQualityRepository {
 
     override suspend fun check(image: LesionImage, kind: ImageKind): QualityReport = withContext(Dispatchers.Default) {
-        val file = File(image.uri)
+        val l = luma(File(image.uri))
+        ImageQualityAnalyzer.analyze(
+            l.luma, l.width, l.height,
+            originalWidth = l.originalWidth, originalHeight = l.originalHeight,
+            checkFraming = kind == ImageKind.DERMOSCOPIC,
+            thresholds = if (kind == ImageKind.DERMOSCOPIC) ImageQualityAnalyzer.DERMOSCOPIC else ImageQualityAnalyzer.CLINICAL
+        )
+    }
+
+    class Luma(val luma: IntArray, val width: Int, val height: Int, val originalWidth: Int, val originalHeight: Int)
+
+    // Brillo por píxel de la imagen reducida a ANALYSIS_SIDE_PX, tal como lo mide check. La calibración de RF-03 en el
+    // teléfono (CalidadEnDispositivoTest) usa esta misma función.
+    fun luma(file: File): Luma {
         require(file.isFile) { "No se encuentra la imagen" }
 
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
@@ -43,12 +56,8 @@ class HeuristicImageQualityRepository : ImageQualityRepository {
             // Luma Rec. 601
             ((0.299 * Color.red(c)) + (0.587 * Color.green(c)) + (0.114 * Color.blue(c))).toInt()
         }
-        val report = ImageQualityAnalyzer.analyze(
-            luma, bitmap.width, bitmap.height,
-            originalWidth = bounds.outWidth, originalHeight = bounds.outHeight,
-            checkFraming = kind == ImageKind.DERMOSCOPIC
-        )
+        val result = Luma(luma, bitmap.width, bitmap.height, bounds.outWidth, bounds.outHeight)
         bitmap.recycle()
-        report
+        return result
     }
 }
