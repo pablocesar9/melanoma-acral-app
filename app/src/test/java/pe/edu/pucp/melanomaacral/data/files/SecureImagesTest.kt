@@ -25,7 +25,7 @@ class SecureImagesTest {
     private val sample = File("src/test/resources/imagenes-ejemplo/ejemplo1.jpg")
 
     @After
-    fun tearDown() { SecureImages.key = null }
+    fun tearDown() { SecureImages.key = null; SecureImages.legacyKey = null }
 
     @Test
     fun cifrar_yDescifrar_devuelveLoMismo() {
@@ -73,6 +73,50 @@ class SecureImagesTest {
             assertArrayEquals(sample.readBytes(), out.readBytes())
         } finally {
             enc.delete(); out.delete()
+        }
+    }
+
+    // Las imágenes antiguas sin cifrar se cifran una sola vez y siguen leyéndose igual; las demás no se tocan.
+    @Test
+    fun imagenesAntiguas_seCifranUnaSolaVez() {
+        val dir = kotlin.io.path.createTempDirectory("imagenes").toFile()
+        try {
+            val plain = sample.readBytes()
+            val antigua = File(dir, "img-antigua.jpg").apply { writeBytes(plain) }
+            val otra = File(dir, "raw-temporal.jpg").apply { writeBytes(plain) }
+            File(dir, "img-x.jpg.cifrando").writeBytes(byteArrayOf(1, 2, 3))
+            assertEquals(1, SecureImages.encryptExisting(dir, key))
+            assertTrue(SecureImages.isEncrypted(antigua.readBytes()))
+            SecureImages.key = key
+            assertArrayEquals(plain, SecureImages.readPlain(antigua))
+            assertArrayEquals(plain, otra.readBytes())
+            assertFalse(File(dir, "img-x.jpg.cifrando").exists())
+            assertEquals(0, SecureImages.encryptExisting(dir, key))
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
+    // Las imágenes del formato anterior ("MAC1", clave del Keystore) se leen con legacyKey y pasan al formato actual.
+    @Test
+    fun imagenesDelFormatoAnterior_seRecifranConLaClaveDeDatos() {
+        val viejaClave = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
+        val dir = kotlin.io.path.createTempDirectory("imagenes").toFile()
+        try {
+            val plain = sample.readBytes()
+            val vieja = File(dir, "img-vieja.jpg").apply { writeBytes(SecureImages.encrypt(plain, viejaClave)) }
+            assertFalse(SecureImages.isCurrentFormat(vieja.readBytes()))
+            SecureImages.key = key; SecureImages.legacyKey = viejaClave
+            assertArrayEquals(plain, SecureImages.readPlain(vieja))
+            // Sin la clave anterior no se toca.
+            assertEquals(0, SecureImages.encryptExisting(dir, key))
+            assertEquals(1, SecureImages.encryptExisting(dir, key, viejaClave))
+            assertTrue(SecureImages.isCurrentFormat(vieja.readBytes()))
+            assertArrayEquals(plain, SecureImages.readPlain(vieja))
+            assertArrayEquals(plain, SecureImages.decrypt(vieja.readBytes(), key))
+            assertEquals(0, SecureImages.encryptExisting(dir, key, viejaClave))
+        } finally {
+            dir.deleteRecursively()
         }
     }
 }

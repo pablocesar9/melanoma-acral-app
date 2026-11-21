@@ -5,6 +5,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -59,8 +60,17 @@ class ObtainImageViewModelTest {
     private lateinit var vm: ObtainImageViewModel
     private lateinit var collector: Job
 
+    // Repositorio que dice qué imágenes usa una evaluación guardada.
+    private class RecordsWithSaved(
+        val saved: MutableSet<String> = mutableSetOf(),
+        base: pe.edu.pucp.melanomaacral.domain.repository.RecordsRepository = InMemoryRecordsRepository()
+    ) : pe.edu.pucp.melanomaacral.domain.repository.RecordsRepository by base {
+        override suspend fun isImageSaved(uri: String) = uri in saved
+    }
+    private val records = RecordsWithSaved()
+
     private fun newViewModel(): ObtainImageViewModel {
-        val created = ObtainImageViewModel("LES-001", InMemoryRecordsRepository(), storage, quality, drafts)
+        val created = ObtainImageViewModel("LES-001", records, storage, quality, drafts)
         // uiState usa WhileSubscribed: hace falta un suscriptor para que se actualice.
         collector = CoroutineScope(UnconfinedTestDispatcher()).launch { created.uiState.collect {} }
         return created
@@ -190,5 +200,22 @@ class ObtainImageViewModelTest {
     @Test fun sinFotos_noSeGuardaNingunPendiente() = runBlocking {
         vm.goToContext()
         assertNull(drafts.get("LES-001"))
+    }
+
+    // Al editar una evaluación, la foto que se reemplaza sigue siendo de la evaluación guardada: no se borra.
+    @Test fun reemplazarUnaFotoDeUnaEvaluacionGuardada_noLaBorra() {
+        vm.onGalleryUri("content://a")
+        val saved = vm.uiState.value.context.image!!
+        records.saved += saved.uri
+        vm.onGalleryUri("content://c")
+        assertTrue(storage.deleted.isEmpty())
+        assertTrue(vm.uiState.value.context.image != saved)
+    }
+
+    @Test fun isImageSaved_reconoceLasImagenesDeLasEvaluacionesGuardadas() = runBlocking {
+        val repo = InMemoryRecordsRepository()
+        val e = repo.evaluations.first().first()
+        assertTrue(repo.isImageSaved(e.images.dermoscopic.uri))
+        assertTrue(!repo.isImageSaved("img-que-no-existe"))
     }
 }

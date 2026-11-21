@@ -42,10 +42,6 @@ class AppContainer(context: Context) {
         AppDatabase.create(context, KeyVault.databasePassphraseHex(context.noBackupFilesDir))
     }
 
-    init {
-        SecureImages.key = KeyVault.imageKey()
-    }
-
     val imageStorage: ImageStorage = AndroidImageStorage(context)
     // Modelo final B0 en el teléfono (fase 4): una sola inferencia da la probabilidad y el Grad-CAM.
     // Runtime.LITERT o Runtime.ONNX; para volver a lo simulado: FakeClassifierRepository() y FakeExplanationRepository().
@@ -61,6 +57,19 @@ class AppContainer(context: Context) {
 
     // Trabajo que debe seguir aunque se cierre la pantalla que lo pidió.
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    init {
+        // RNF-05: las imágenes se cifran con la clave de datos de la app, guardada cifrada con la del Keystore.
+        val keystoreKey = KeyVault.imageKey()
+        val dataKey = KeyVault.imageDataKey(context.noBackupFilesDir, keystoreKey)
+        SecureImages.key = dataKey
+        SecureImages.legacyKey = keystoreKey
+        // Las imágenes sin cifrar o cifradas con el formato anterior pasan al actual una sola vez, en segundo plano.
+        appScope.launch(Dispatchers.IO) {
+            val n = SecureImages.encryptExisting(java.io.File(context.filesDir, "images"), dataKey, keystoreKey)
+            if (n > 0) android.util.Log.w("SecureImages", "Imágenes pasadas al formato actual: $n")
+        }
+    }
 
     // Analiza la imagen dermoscópica en segundo plano (mientras se llenan los datos clínicos). El resultado queda en
     // memoria en AnalizadorB0, así que la pantalla de resultado no espera la inferencia otra vez.

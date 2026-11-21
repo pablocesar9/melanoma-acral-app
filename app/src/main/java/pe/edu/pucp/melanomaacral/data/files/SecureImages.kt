@@ -14,21 +14,36 @@ import javax.crypto.spec.GCMParameterSpec
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 
-// RNF-05: las imágenes de la app se guardan cifradas con AES-256-GCM. La clave vive en el Keystore de Android
-// (no sale del almacén seguro del teléfono). Formato del archivo: "MAC1" + IV de 12 bytes + texto cifrado con su etiqueta.
-// Los archivos sin cifrar (anteriores a esta versión, o las fotos de prueba en la JVM) se siguen leyendo tal cual.
+// RNF-05: las imágenes de la app se guardan cifradas con AES-256-GCM. Formato del archivo: cabecera de 4 bytes +
+// IV de 12 bytes + texto cifrado con su etiqueta. La cabecera dice con qué clave se cifró:
+//  - "MAC2": clave de datos de la app (KeyVault.imageDataKey), guardada cifrada con la clave del Keystore, igual que la
+//    frase de paso de la base de datos. El cifrado corre en el procesador, con su aceleración AES.
+//  - "MAC1": directamente con la clave del Keystore (versión anterior). En el Honor, descifrar así una foto de 500 KB
+//    tardaba unos 1,25 s y las miniaturas cargaban lento; esas imágenes se recifran una vez a "MAC2" (encryptExisting).
+// Los archivos sin cifrar (anteriores al cifrado, o las fotos de prueba en la JVM) se siguen leyendo tal cual.
 object SecureImages {
-    private val MAGIC = byteArrayOf('M'.code.toByte(), 'A'.code.toByte(), 'C'.code.toByte(), '1'.code.toByte())
+    private val MAGIC1 = byteArrayOf('M'.code.toByte(), 'A'.code.toByte(), 'C'.code.toByte(), '1'.code.toByte())
+    private val MAGIC2 = byteArrayOf('M'.code.toByte(), 'A'.code.toByte(), 'C'.code.toByte(), '2'.code.toByte())
+    private const val HEADER = 4
     private const val IV_BYTES = 12
     private const val TAG_BITS = 128
 
-    // Clave de cifrado; null = no cifrar (pruebas en la JVM). La fija AppContainer al iniciar la app.
+    // Clave de cifrado de las imágenes; null = no cifrar (pruebas en la JVM). La fija AppContainer al iniciar la app.
     @Volatile var key: SecretKey? = null
+    // Clave del Keystore, solo para leer las imágenes "MAC1"; si es null se usa `key`.
+    @Volatile var legacyKey: SecretKey? = null
 
-    fun isEncrypted(bytes: ByteArray): Boolean =
-        bytes.size > MAGIC.size + IV_BYTES && (MAGIC.indices).all { bytes[it] == MAGIC[it] }
+    private fun starts(bytes: ByteArray, magic: ByteArray) =
+        bytes.size > HEADER + IV_BYTES && magic.indices.all { bytes[it] == magic[it] }
 
-    fun encrypt(plain: ByteArray, k: SecretKey): ByteArray {
+    fun isEncrypted(bytes: ByteArray): Boolean = starts(bytes, MAGIC1) || starts(bytes, MAGIC2)
+
+    // true si la imagen ya está en el formato actual ("MAC2").
+    fun isCurrentFormat(bytes: ByteArray): Boolean = starts(bytes, MAGIC2)
+
+    // `current` = true escribe la cabecera "MAC2" (clave de datos); false, "MAC1" (clave del Keystore, también la usa
+    // KeyVault para guardar las claves de la app).
+    fun encrypt(plain: ByteArray, k: SecretKey, current: Boolean = false): ByteArray {
         val iv = ByteArray(IV_BYTES).also { SecureRandom().nextBytes(it) }
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         // Las claves del Keystore no aceptan un IV propio: se deja que el proveedor lo genere y se guarda el suyo.
@@ -37,28 +52,32 @@ object SecureImages {
         } catch (e: java.security.InvalidAlgorithmParameterException) {
             cipher.init(Cipher.ENCRYPT_MODE, k); cipher.iv
         }
-        return MAGIC + usedIv + cipher.doFinal(plain)
+        return (if (current) MAGIC2 else MAGIC1) + usedIv + cipher.doFinal(plain)
     }
 
     fun decrypt(data: ByteArray, k: SecretKey): ByteArray {
-        val iv = data.copyOfRange(MAGIC.size, MAGIC.size + IV_BYTES)
+        val iv = data.copyOfRange(HEADER, HEADER + IV_BYTES)
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.DECRYPT_MODE, k, GCMParameterSpec(TAG_BITS, iv))
-        return cipher.doFinal(data, MAGIC.size + IV_BYTES, data.size - MAGIC.size - IV_BYTES)
+        return cipher.doFinal(data, HEADER + IV_BYTES, data.size - HEADER - IV_BYTES)
+    }
+
+    private fun decryptImage(bytes: ByteArray): ByteArray {
+        val k = (if (starts(bytes, MAGIC1)) legacyKey ?: key else key) ?: error("Imagen cifrada y sin clave disponible")
+        return decrypt(bytes, k)
     }
 
     // Bytes de la imagen en claro, esté o no cifrada.
     fun readPlain(file: File): ByteArray {
         val bytes = file.readBytes()
         if (!isEncrypted(bytes)) return bytes
-        val k = key ?: error("Imagen cifrada y sin clave disponible")
-        return decrypt(bytes, k)
+        return decryptImage(bytes)
     }
 
     // Escribe la imagen cifrada si hay clave; si no, en claro.
     fun write(file: File, plain: ByteArray) {
         val k = key
-        file.writeBytes(if (k != null) encrypt(plain, k) else plain)
+        file.writeBytes(if (k != null) encrypt(plain, k, current = true) else plain)
     }
 
     fun writeJpeg(file: File, bitmap: Bitmap, quality: Int) {
@@ -82,6 +101,34 @@ object SecureImages {
 
     // Copia en claro (para compartir la derivación por FileProvider, en la caché de la app).
     fun copyPlain(src: File, dst: File) = dst.writeBytes(readPlain(src))
+
+    // Pasa, una sola vez, las imágenes guardadas (img-*) al formato actual: cifra las que quedaron sin cifrar y
+    // recifra con la clave de datos las "MAC1" (`legacy` = clave del Keystore con que se cifraron). Cada una se
+    // escribe primero en un archivo temporal, se comprueba que se descifra igual al original y solo entonces lo
+    // reemplaza (renombrar es atómico: quien la lea en ese momento obtiene una de las dos versiones, y las dos se
+    // leen bien). Si algo falla, la imagen queda como estaba y se intenta otra vez al abrir la app.
+    // Devuelve cuántas imágenes se cifraron o recifraron.
+    fun encryptExisting(dir: File, k: SecretKey, legacy: SecretKey? = null): Int {
+        val files = dir.listFiles() ?: return 0
+        files.filter { it.name.endsWith(".cifrando") }.forEach { it.delete() }
+        var n = 0
+        for (f in files) {
+            if (!f.isFile || !f.name.startsWith("img-") || f.name.endsWith(".cifrando")) continue
+            val ok = runCatching {
+                val bytes = f.readBytes()
+                if (bytes.isEmpty() || isCurrentFormat(bytes)) return@runCatching false
+                val plain = if (starts(bytes, MAGIC1)) decrypt(bytes, legacy ?: return@runCatching false) else bytes
+                val enc = encrypt(plain, k, current = true)
+                check(decrypt(enc, k).contentEquals(plain))
+                val tmp = File(dir, f.name + ".cifrando")
+                tmp.writeBytes(enc)
+                check(tmp.renameTo(f))
+                true
+            }.getOrDefault(false)
+            if (ok) n++
+        }
+        return n
+    }
 }
 
 // Clave AES-256 del Keystore de Android para los datos de la app (RNF-05).
@@ -112,5 +159,17 @@ object KeyVault {
         val hex = raw.joinToString("") { "%02x".format(it) }.toByteArray(Charsets.US_ASCII)
         f.writeBytes(SecureImages.encrypt(hex, k))
         return hex
+    }
+
+    // Clave de datos de las imágenes: AES-256 aleatoria, guardada cifrada con la clave del Keystore en la carpeta sin
+    // respaldo de la app (como db.key). Así el Keystore solo descifra 32 bytes al iniciar, no cada imagen.
+    fun imageDataKey(dir: File, keystoreKey: SecretKey = imageKey()): SecretKey {
+        val f = File(dir, "img.key")
+        if (f.isFile) return javax.crypto.spec.SecretKeySpec(SecureImages.decrypt(f.readBytes(), keystoreKey), "AES")
+        val raw = ByteArray(32).also { SecureRandom().nextBytes(it) }
+        val tmp = File(dir, "img.key.tmp")
+        tmp.writeBytes(SecureImages.encrypt(raw, keystoreKey))
+        check(tmp.renameTo(f)) { "No se pudo guardar la clave de las imágenes" }
+        return javax.crypto.spec.SecretKeySpec(raw, "AES")
     }
 }

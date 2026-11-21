@@ -77,7 +77,7 @@ data class ObtainImageUiState(
 
 class ObtainImageViewModel(
     private val lesionId: String,
-    records: RecordsRepository,
+    private val records: RecordsRepository,
     private val storage: ImageStorage,
     private val quality: ImageQualityRepository,
     private val drafts: DraftRepository,
@@ -267,8 +267,9 @@ class ObtainImageViewModel(
                 reportError("No se pudo procesar la imagen: ${e.message}")
                 return@launch
             }
-            // La foto que se reemplaza se borra (no queda ningún archivo huérfano).
-            local.value.slot(step).image?.let { storage.delete(it) }
+            // La foto que se reemplaza se borra (no queda ningún archivo huérfano), salvo que la use una evaluación
+            // guardada (por ejemplo, al editar una evaluación).
+            local.value.slot(step).image?.let { if (!records.isImageSaved(it.uri)) storage.delete(it) }
             local.update { it.withSlot(step, CaptureSlot(image = image, isChecking = true)).copy(isProcessing = false) }
             saveDraft()
 

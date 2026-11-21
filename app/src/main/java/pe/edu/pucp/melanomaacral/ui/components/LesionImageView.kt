@@ -9,6 +9,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import kotlinx.coroutines.Dispatchers
@@ -50,14 +51,33 @@ fun LesionImageView(
     }
 }
 
+// Imágenes ya decodificadas, para no descifrar otra vez al volver a una pantalla (RNF-05: descifrar con la clave
+// del Keystore es lento). Hasta 1/8 de la memoria de la app; los archivos no cambian una vez guardados, pero la
+// clave incluye la fecha de modificación por si se reemplazan.
+private object DecodedImages {
+    private val cache = object : android.util.LruCache<String, ImageBitmap>(
+        (Runtime.getRuntime().maxMemory() / 8).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+    ) {
+        override fun sizeOf(key: String, value: ImageBitmap): Int = value.asAndroidBitmap().byteCount
+    }
+    fun key(file: File, maxSidePx: Int) = "${file.path}|${file.lastModified()}|$maxSidePx"
+    operator fun get(key: String): ImageBitmap? = cache.get(key)
+    operator fun set(key: String, value: ImageBitmap) { cache.put(key, value) }
+}
+
 private suspend fun loadScaled(path: String, maxSidePx: Int): ImageBitmap? = withContext(Dispatchers.IO) {
     val file = File(path)
     if (!file.isFile) return@withContext null
+    val key = DecodedImages.key(file, maxSidePx)
+    DecodedImages[key]?.let { return@withContext it }
+    // Se descifra una sola vez y se decodifica desde la memoria (antes se descifraba dos veces: medidas y bitmap).
+    val bytes = runCatching { pe.edu.pucp.melanomaacral.data.files.SecureImages.readPlain(file) }.getOrNull()
+        ?: return@withContext null
     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-    pe.edu.pucp.melanomaacral.data.files.SecureImages.decodeFile(path, bounds)
+    BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
     if (bounds.outWidth <= 0) return@withContext null
     val options = BitmapFactory.Options().apply {
         inSampleSize = ImageScaling.sampleSize(bounds.outWidth, bounds.outHeight, maxSidePx)
     }
-    pe.edu.pucp.melanomaacral.data.files.SecureImages.decodeFile(path, options)?.asImageBitmap()
+    BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)?.asImageBitmap()?.also { DecodedImages[key] = it }
 }

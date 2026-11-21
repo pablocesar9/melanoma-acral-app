@@ -76,10 +76,11 @@ class LesionViewModel(
         }
     }
 
-    // Descarta la evaluación sin terminar y borra sus fotos (no quedan archivos huérfanos).
+    // Descarta la evaluación sin terminar y borra sus fotos (no quedan archivos huérfanos), salvo las que usa una
+    // evaluación guardada: al descartar la edición de una evaluación, sus fotos se conservan.
     fun discardDraft() {
         viewModelScope.launch {
-            drafts.get(lesionId)?.allImages?.forEach { storage.delete(it) }
+            drafts.get(lesionId)?.allImages?.forEach { if (!records.isImageSaved(it.uri)) storage.delete(it) }
             drafts.delete(lesionId)
         }
     }
